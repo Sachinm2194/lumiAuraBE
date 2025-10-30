@@ -23,6 +23,10 @@ import { NotificationModule } from './modules/Notification/notification.module';
         username: config.get<string>('DB_USER'),
         password: config.get<string>('DB_PASSWORD'),
         database: config.get<string>('DB_NAME'),
+        ssl: {
+          // require: true, // <-- ensure SSL is required
+          rejectUnauthorized: false, // <-- Render uses self-signed certs
+        },
         autoLoadEntities: true,
         synchronize: true,
       }),
