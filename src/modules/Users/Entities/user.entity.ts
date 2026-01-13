@@ -19,11 +19,16 @@ export class User {
   @Column({ unique: true })
   email: string;
 
-  @Column()
+  @Column({ nullable: true })
   password: string;
 
+  @Column({ type: 'varchar', default: 'email', nullable: false })
+  authProvider: string; // 'email' or 'google'
+
   @Column({ nullable: true })
-  name: string;
+  firstName: string;
+  @Column({ nullable: true })
+  lastName: string;
 
   @Column({ nullable: true })
   phone: string;
@@ -33,6 +38,15 @@ export class User {
 
   @Column({ default: true })
   isActive: boolean;
+
+  @Column({ default: false })
+  isVerified: boolean;
+
+  @Column({ nullable: true })
+  verificationToken: string;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  verificationTokenExpiry: Date;
 
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;

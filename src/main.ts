@@ -44,7 +44,10 @@ async function bootstrap() {
     }),
   );
 
-  await app.listen(process.env.PORT ?? 9000);
-  console.log(`🚀 Server running on http://localhost:${process.env.PORT ?? 9000}`);
+  const port = process.env.PORT ?? 9000;
+  await app.listen(port);
+  
+  console.log(`🚀 Server running on http://localhost:${port}`);
+  
 }
 bootstrap();

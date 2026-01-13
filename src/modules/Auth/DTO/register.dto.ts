@@ -16,7 +16,11 @@ export class RegisterDto {
 
   @IsString({ message: 'Name must be a string' })
   @IsOptional()
-  name?: string;
+  firstName?: string;
+
+  @IsString({ message: 'Last name must be a string' })
+  @IsOptional()
+  lastName?: string;
 
   @IsString({ message: 'Phone must be a string' })
   @IsOptional()

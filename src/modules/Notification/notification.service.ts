@@ -5,18 +5,38 @@ import { Order, OrderStatus } from '../Order/entities/order.entity';
 
 @Injectable()
 export class NotificationService {
-  private transporter: nodemailer.Transporter;
+  private transporter: nodemailer.Transporter | null = null;
+  private isSmtpConfigured: boolean = false;
 
   constructor(private configService: ConfigService) {
-    this.transporter = nodemailer.createTransport({
-      host: this.configService.get('SMTP_HOST'),
-      port: this.configService.get('SMTP_PORT'),
-      secure: false,
-      auth: {
-        user: this.configService.get('SMTP_USER'),
-        pass: this.configService.get('SMTP_PASS'),
-      },
-    });
+    const smtpHost = this.configService.get('SMTP_HOST');
+    const smtpPort = this.configService.get('SMTP_PORT');
+    const smtpUser = this.configService.get('SMTP_USER');
+    const smtpPass = this.configService.get('SMTP_PASS');
+
+    // Only create transporter if SMTP is fully configured
+    if (smtpHost && smtpPort && smtpUser && smtpPass) {
+      try {
+        this.transporter = nodemailer.createTransport({
+          host: smtpHost,
+          port: parseInt(smtpPort.toString(), 10),
+          secure: false,
+          auth: {
+            user: smtpUser,
+            pass: smtpPass,
+          },
+        });
+        this.isSmtpConfigured = true;
+        console.log('✅ SMTP configured successfully');
+      } catch (error) {
+        console.warn('⚠️  Failed to initialize SMTP transporter:', error);
+        this.isSmtpConfigured = false;
+      }
+    } else {
+      console.warn('⚠️  SMTP not configured. Email sending will be disabled.');
+      console.warn('   Please set SMTP_HOST, SMTP_PORT, SMTP_USER, and SMTP_PASS in your .env file');
+      this.isSmtpConfigured = false;
+    }
   }
 
   async sendOrderConfirmation(order: Order): Promise<void> {
@@ -156,6 +176,84 @@ export class NotificationService {
 
         <p>You can track your order anytime by visiting our website and entering your order number.</p>
         <p>Thank you for shopping with LumiAura!</p>
+      </div>
+    `;
+  }
+
+  async sendVerificationEmail(email: string, verificationToken: string, firstName?: string): Promise<void> {
+    // Check if SMTP is configured
+    if (!this.isSmtpConfigured || !this.transporter) {
+      const apiUrl = `http://localhost:9000/auth/verify-email?token=${verificationToken}`;
+      console.warn(`⚠️  SMTP not configured. Email not sent to ${email}`);
+      console.warn(`📧 [DEV MODE] Verification URL: ${apiUrl}`);
+      console.warn(`📧 [DEV MODE] Token: ${verificationToken}`);
+      // Don't throw error - just log the token for development
+      return;
+    }
+
+    const verificationUrl = `${this.configService.get('FRONTEND_URL') || 'http://localhost:3001'}/verify-email?token=${verificationToken}`;
+    
+    const mailOptions = {
+      from: this.configService.get('FROM_EMAIL') || 'noreply@lumiaura.com',
+      to: email,
+      subject: 'Verify Your Email - LumiAura',
+      html: this.generateVerificationEmail(firstName || 'User', verificationUrl),
+    };
+
+    try {
+      await this.transporter.sendMail(mailOptions);
+      console.log(`✅ Verification email sent to ${email}`);
+    } catch (error) {
+      console.error('❌ Failed to send verification email:', error);
+      // In development, still log the token even if email fails
+      if (process.env.NODE_ENV !== 'production') {
+        const apiUrl = `http://localhost:9000/auth/verify-email?token=${verificationToken}`;
+        console.warn(`📧 [DEV MODE] Verification URL: ${apiUrl}`);
+        console.warn(`📧 [DEV MODE] Token: ${verificationToken}`);
+      }
+      throw error;
+    }
+  }
+
+  private generateVerificationEmail(name: string, verificationUrl: string): string {
+    return `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h1 style="color: #333; text-align: center;">Welcome to LumiAura!</h1>
+        
+        <div style="background: #f5f5f5; padding: 20px; margin: 20px 0; border-radius: 5px;">
+          <p style="font-size: 16px;">Hi ${name},</p>
+          <p style="font-size: 16px;">Thank you for registering with LumiAura! Please verify your email address to complete your registration.</p>
+        </div>
+
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${verificationUrl}" 
+             style="background-color: #4CAF50; 
+                    color: white; 
+                    padding: 14px 28px; 
+                    text-decoration: none; 
+                    border-radius: 5px; 
+                    display: inline-block; 
+                    font-size: 16px; 
+                    font-weight: bold;">
+            Verify Email Address
+          </a>
+        </div>
+
+        <div style="background: #fff3cd; padding: 15px; margin: 20px 0; border-radius: 5px; border-left: 4px solid #ffc107;">
+          <p style="margin: 0; font-size: 14px; color: #856404;">
+            <strong>Note:</strong> If the button doesn't work, copy and paste this link into your browser:<br>
+            <a href="${verificationUrl}" style="color: #856404; word-break: break-all;">${verificationUrl}</a>
+          </p>
+        </div>
+
+        <p style="font-size: 14px; color: #666;">
+          This verification link will expire in 24 hours. If you didn't create an account with LumiAura, please ignore this email.
+        </p>
+
+        <p style="font-size: 14px; color: #666; margin-top: 30px;">
+          Best regards,<br>
+          The LumiAura Team
+        </p>
       </div>
     `;
   }

@@ -1,6 +1,7 @@
-import { Module } from '@nestjs/common';
+import { Module, Logger } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ScheduleModule } from '@nestjs/schedule';
 import { UsersModule } from './modules/Users/users.module';
 import { AuthModule } from './modules/Auth/auth.module';
 import { ProductModule } from './modules/Product/product.module';
@@ -15,6 +16,7 @@ import { AppService } from './app.service';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }), // makes ConfigService available globally
+    ScheduleModule.forRoot(), // Enable scheduled tasks
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -38,7 +40,13 @@ import { AppService } from './app.service';
     InventoryModule,
     NotificationModule,
   ],
-  controllers: [AppController],
+  controllers: [AppController], // Root controller registered here
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule {
+  private readonly logger = new Logger(AppModule.name);
+
+  constructor() {
+    this.logger.log('AppModule initialized - AppController registered for root endpoint');
+  }
+}

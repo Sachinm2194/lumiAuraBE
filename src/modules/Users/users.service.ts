@@ -30,10 +30,32 @@ export class UsersService {
   findUserByEmail(email: string) {
     return this.userRepository.findOne({where:{email}});
   }
+  findUserByVerificationToken(token: string) {
+    return this.userRepository.findOne({where:{verificationToken: token}});
+  }
   updateUser(id: number, updateUserDTO: UpdateUserDTO) {
     return this.userRepository.update(id, updateUserDTO);
   }
   deleteUser(id: number) {
     return this.userRepository.delete(id);
+  }
+
+  async deleteExpiredUnverifiedUsers() {
+    const now = new Date();
+    const result = await this.userRepository
+      .createQueryBuilder()
+      .delete()
+      .from(User)
+      .where('isVerified = :isVerified', { isVerified: false })
+      .andWhere('verificationTokenExpiry < :now', { now })
+      .execute();
+    
+    return result.affected || 0;
+  }
+
+  async findUnverifiedUsers() {
+    return this.userRepository.find({
+      where: { isVerified: false },
+    });
   }
 }

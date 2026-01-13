@@ -1,12 +1,17 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Logger } from '@nestjs/common';
 import { AppService } from './app.service';
 
 @Controller()
 export class AppController {
-  constructor(private readonly appService: AppService) {}
+  private readonly logger = new Logger(AppController.name);
+
+  constructor(private readonly appService: AppService) {
+    this.logger.log('AppController initialized - Root endpoint registered');
+  }
 
   @Get()
   getHello(): string {
+    this.logger.log('Root endpoint accessed');
     return this.appService.getHello();
   }
 }

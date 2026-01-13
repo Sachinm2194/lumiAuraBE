@@ -5,13 +5,16 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './jwt.strategy';
+import { GoogleStrategy } from './google.strategy';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { AdminGuard } from './guards/admin.guard';
 import { UsersModule } from '../Users/users.module';
+import { NotificationModule } from '../Notification/notification.module';
 
 @Module({
   imports: [
     UsersModule,
+    NotificationModule,
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -22,7 +25,7 @@ import { UsersModule } from '../Users/users.module';
       }),
     }),
   ],
-  providers: [AuthService, JwtStrategy, JwtAuthGuard, AdminGuard],
+  providers: [AuthService, JwtStrategy, GoogleStrategy, JwtAuthGuard, AdminGuard],
   controllers: [AuthController],
   exports: [JwtAuthGuard, AdminGuard, AuthService],
 })
