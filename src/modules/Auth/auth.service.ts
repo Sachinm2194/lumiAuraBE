@@ -2,7 +2,9 @@
 import { Injectable, UnauthorizedException, ConflictException, Logger, BadRequestException } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { UsersService } from '../Users/users.service';
 import { NotificationService } from '../Notification/notification.service';
@@ -17,6 +19,7 @@ export class AuthService {
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
     private readonly notificationService: NotificationService,
+    private readonly configService: ConfigService,
   ) {}
 
   // REGISTER
@@ -59,6 +62,13 @@ export class AuthService {
 
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
+    
+    // Log password info (DEV MODE ONLY - Remove in production!)
+    this.logger.warn(`═══════════════════════════════════════════════════════`);
+    this.logger.warn(`🔑 [DEV MODE] PASSWORD INFORMATION FOR: ${email}`);
+    this.logger.warn(`   Original Password: "${password}"`);
+    this.logger.warn(`   Hashed Password (DB): ${hashedPassword}`);
+    this.logger.warn(`═══════════════════════════════════════════════════════`);
 
     // Generate verification token
     const verificationToken = uuidv4();
@@ -138,6 +148,15 @@ export class AuthService {
 
     // Verify password
     const isPasswordValid = await bcrypt.compare(password, user.password);
+    
+    // Log password verification info (DEV MODE ONLY)
+    this.logger.warn(`═══════════════════════════════════════════════════════`);
+    this.logger.warn(`🔑 [DEV MODE] LOGIN PASSWORD VERIFICATION FOR: ${email}`);
+    this.logger.warn(`   Original Password Entered: "${password}"`);
+    this.logger.warn(`   Hashed Password from DB: ${user.password}`);
+    this.logger.warn(`   Verification Result: ${isPasswordValid ? '✅ VALID - Password matches!' : '❌ INVALID - Password does not match!'}`);
+    this.logger.warn(`═══════════════════════════════════════════════════════`);
+    
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid email or password');
     }
@@ -147,13 +166,18 @@ export class AuthService {
     this.logger.log(`payload: ${payload.firstName } ${payload.lastName} ${payload.email} ${payload.phone} ${payload.role}`);
 
     // Sign JWT (you can set expiration to 7 days)  
-    const access_token = this.jwtService.sign(payload, {
+    const jwtToken = this.jwtService.sign(payload, {
       expiresIn: '7d', // 7 days
     });
 
-    this.logger.log(`User logged in successfully: ${email}`);
+    // Encrypt the JWT token before sending
+    const encryptedToken = this.encryptToken(jwtToken);
 
-    return { access_token };
+    this.logger.log(`User logged in successfully: ${email}`);
+    this.logger.warn(`[DEV MODE] Original JWT: ${jwtToken}`);
+    this.logger.warn(`[DEV MODE] Encrypted Token: ${encryptedToken}`);
+
+    return { access_token: encryptedToken };
   }
 
   // GOOGLE OAUTH
@@ -196,13 +220,18 @@ export class AuthService {
     };
 
     // Sign JWT
-    const access_token = this.jwtService.sign(payload, {
+    const jwtToken = this.jwtService.sign(payload, {
       expiresIn: '7d',
     });
 
-    this.logger.log(`Google user logged in successfully: ${user.email}`);
+    // Encrypt the JWT token before sending
+    const encryptedToken = this.encryptToken(jwtToken);
 
-    return { access_token, user: existingUser };
+    this.logger.log(`Google user logged in successfully: ${user.email}`);
+    this.logger.warn(`[DEV MODE] Original JWT: ${jwtToken}`);
+    this.logger.warn(`[DEV MODE] Encrypted Token: ${encryptedToken}`);
+
+    return { access_token: encryptedToken, user: existingUser };
   }
 
   // VERIFY EMAIL
@@ -299,6 +328,24 @@ export class AuthService {
     await this.cleanupExpiredUnverifiedAccounts();
   }
 
+  // GET PASSWORD HASH (Development/Testing only)
+  async getPasswordHash(email: string) {
+    this.logger.warn(`[DEV MODE] Password hash requested for: ${email}`);
+    
+    const user = await this.usersService.findUserByEmail(email);
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    return {
+      email: user.email,
+      hashedPassword: user.password,
+      authProvider: user.authProvider,
+      message: '⚠️ This is for development/testing only. Passwords are hashed with bcrypt and cannot be decrypted.',
+      note: 'To verify a password, use the login endpoint which compares the password against this hash.',
+    };
+  }
+
   // GET VERIFICATION TOKEN (Development/Testing only)
   async getVerificationTokenByEmail(email: string) {
     this.logger.log(`Getting verification token for: ${email}`);
@@ -328,4 +375,23 @@ export class AuthService {
       message: 'Use this token to verify your email. This endpoint is for development/testing only.',
     };
   }
+
+  // ENCRYPT TOKEN (AES-256-CBC)
+  private encryptToken(token: string): string {
+    const algorithm = 'aes-256-cbc';
+    // Use JWT_SECRET from env, pad or truncate to 32 characters for AES-256
+    const jwtSecret = this.configService.get<string>('JWT_SECRET') ;
+    const secretKey = jwtSecret.padEnd(32, '0').substring(0, 32); // Ensure exactly 32 chars
+    
+    const iv = crypto.randomBytes(16); // Initialization vector
+
+    const cipher = crypto.createCipheriv(algorithm, Buffer.from(secretKey), iv);
+    let encrypted = cipher.update(token, 'utf8', 'hex');
+    encrypted += cipher.final('hex');
+
+    // Return IV + encrypted data (IV is needed for decryption)
+    return iv.toString('hex') + ':' + encrypted;
+  }
 }
+
+

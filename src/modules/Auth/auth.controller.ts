@@ -56,4 +56,9 @@ export class AuthController {
   async getVerificationToken(@Query('email') email: string) {
     return this.authService.getVerificationTokenByEmail(email);
   }
+
+  @Get('view-password-hash')
+  async viewPasswordHash(@Query('email') email: string) {
+    return this.authService.getPasswordHash(email);
+  }
 }
