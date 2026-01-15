@@ -1,15 +1,21 @@
 // src/modules/auth/auth.service.ts
-import { Injectable, UnauthorizedException, ConflictException, Logger, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  ConflictException,
+  Logger,
+  BadRequestException,
+} from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
-import * as crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { UsersService } from '../Users/users.service';
 import { NotificationService } from '../Notification/notification.service';
 import { RegisterDto } from './DTO/register.dto';
 import { LoginDto } from './DTO/login.dto';
+import { UpdateUserDTO } from '../Users/DTO/updateUser.dto';
 
 @Injectable()
 export class AuthService {
@@ -21,6 +27,20 @@ export class AuthService {
     private readonly notificationService: NotificationService,
     private readonly configService: ConfigService,
   ) {}
+
+  private generateRefreshToken(): string {
+    // Generate a secure random token (UUID)
+    return uuidv4();
+  }
+  private async compareRefreshToken(
+    plainToken: string,
+    hashedToken: string,
+  ): Promise<boolean> {
+    return await bcrypt.compare(plainToken, hashedToken);
+  }
+  private async hashRefreshToken(token: string): Promise<string> {
+    return await bcrypt.hash(token, 10);
+  }
 
   // REGISTER
   async register(registerDto: RegisterDto) {
@@ -40,29 +60,33 @@ export class AuthService {
       // 1. Token is expired (verificationTokenExpiry < now), OR
       // 2. Account was created more than 24 hours ago (user had time to verify)
       const now = new Date();
-      const isTokenExpired = existingUser.verificationTokenExpiry 
-        ? existingUser.verificationTokenExpiry < now 
+      const isTokenExpired = existingUser.verificationTokenExpiry
+        ? existingUser.verificationTokenExpiry < now
         : false;
-      const isAccountOld = existingUser.createdAt 
-        ? (now.getTime() - existingUser.createdAt.getTime()) > 24 * 60 * 60 * 1000 // 24 hours in milliseconds
+      const isAccountOld = existingUser.createdAt
+        ? now.getTime() - existingUser.createdAt.getTime() > 24 * 60 * 60 * 1000 // 24 hours in milliseconds
         : false;
 
       if (isTokenExpired || isAccountOld) {
         // Delete expired or old unverified account to allow re-registration
-        this.logger.log(`Deleting ${isTokenExpired ? 'expired' : 'old'} unverified account for: ${email}`);
+        this.logger.log(
+          `Deleting ${isTokenExpired ? 'expired' : 'old'} unverified account for: ${email}`,
+        );
         await this.usersService.deleteUser(existingUser.id);
-        this.logger.log(`Unverified account deleted, proceeding with new registration for: ${email}`);
+        this.logger.log(
+          `Unverified account deleted, proceeding with new registration for: ${email}`,
+        );
       } else {
         // Token is still valid and account is recent - don't allow re-registration
         throw new ConflictException(
-          'An unverified account exists for this email. Please check your inbox for the verification link or wait 24 hours before re-registering.'
+          'An unverified account exists for this email. Please check your inbox for the verification link or wait 24 hours before re-registering.',
         );
       }
     }
 
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
-    
+
     // Log password info (DEV MODE ONLY - Remove in production!)
     this.logger.warn(`═══════════════════════════════════════════════════════`);
     this.logger.warn(`🔑 [DEV MODE] PASSWORD INFORMATION FOR: ${email}`);
@@ -74,7 +98,8 @@ export class AuthService {
     const verificationToken = uuidv4();
     const verificationTokenExpiry = new Date();
     verificationTokenExpiry.setHours(verificationTokenExpiry.getHours() + 24); // 24 hours expiry
-
+    const generateRefreshToken = uuidv4();
+    const hashedRefreshToken = await bcrypt.hash(generateRefreshToken, 10);
     // Create user
     const user = await this.usersService.createUser({
       email,
@@ -97,7 +122,10 @@ export class AuthService {
       );
       this.logger.log(`Verification email sent to: ${email}`);
     } catch (error) {
-      this.logger.error(`Failed to send verification email to ${email}:`, error);
+      this.logger.error(
+        `Failed to send verification email to ${email}:`,
+        error,
+      );
       // Don't throw error - user is created, they can request resend later
     }
 
@@ -105,22 +133,27 @@ export class AuthService {
 
     // Return user without password
     const { password: _, ...userWithoutPassword } = user;
-    
+
     // In development, include verification token if email sending failed
-    const response: any = { 
-      message: 'User registered successfully. Please check your email to verify your account.', 
-      user: { ...userWithoutPassword, verificationToken: undefined }
+    const response: any = {
+      message:
+        'User registered successfully. Please check your email to verify your account.',
+      user: { ...userWithoutPassword, verificationToken: undefined },
     };
-    
+
     // If email failed to send, include token in response for development/testing
     // Check if we're in development mode (NODE_ENV !== 'production')
     const isDevelopment = process.env.NODE_ENV !== 'production';
     if (isDevelopment) {
       // Log the verification token for development
-      this.logger.warn(`[DEV MODE] Verification token for ${email}: ${verificationToken}`);
-      this.logger.warn(`[DEV MODE] Verification URL: http://localhost:9000/auth/verify-email?token=${verificationToken}`);
+      this.logger.warn(
+        `[DEV MODE] Verification token for ${email}: ${verificationToken}`,
+      );
+      this.logger.warn(
+        `[DEV MODE] Verification URL: http://localhost:9000/auth/verify-email?token=${verificationToken}`,
+      );
     }
-    
+
     return response;
   }
 
@@ -138,46 +171,67 @@ export class AuthService {
 
     // Check if user registered with Google (no password)
     if (user.authProvider === 'google' || !user.password) {
-      throw new UnauthorizedException('Please use Google login for this account');
+      throw new UnauthorizedException(
+        'Please use Google login for this account',
+      );
     }
 
     // Check if email is verified
     if (!user.isVerified) {
-      throw new UnauthorizedException('Please verify your email before logging in. Check your inbox for the verification link.');
+      throw new UnauthorizedException(
+        'Please verify your email before logging in. Check your inbox for the verification link.',
+      );
     }
 
     // Verify password
     const isPasswordValid = await bcrypt.compare(password, user.password);
-    
+
     // Log password verification info (DEV MODE ONLY)
     this.logger.warn(`═══════════════════════════════════════════════════════`);
     this.logger.warn(`🔑 [DEV MODE] LOGIN PASSWORD VERIFICATION FOR: ${email}`);
     this.logger.warn(`   Original Password Entered: "${password}"`);
     this.logger.warn(`   Hashed Password from DB: ${user.password}`);
-    this.logger.warn(`   Verification Result: ${isPasswordValid ? '✅ VALID - Password matches!' : '❌ INVALID - Password does not match!'}`);
+    this.logger.warn(
+      `   Verification Result: ${isPasswordValid ? '✅ VALID - Password matches!' : '❌ INVALID - Password does not match!'}`,
+    );
     this.logger.warn(`═══════════════════════════════════════════════════════`);
-    
+
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid email or password');
     }
 
     // Create JWT payload
-    const payload = { sub: user.id, email: user.email ,firstName: user.firstName, lastName: user.lastName, phone: user.phone,role: user.role};
-    this.logger.log(`payload: ${payload.firstName } ${payload.lastName} ${payload.email} ${payload.phone} ${payload.role}`);
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      phone: user.phone,
+      role: user.role,
+    };
+    this.logger.log(
+      `payload: ${payload.firstName} ${payload.lastName} ${payload.email} ${payload.phone} ${payload.role}`,
+    );
 
-    // Sign JWT (you can set expiration to 7 days)  
+    // Sign JWT (you can set expiration to 7 days)
     const jwtToken = this.jwtService.sign(payload, {
-      expiresIn: '7d', // 7 days
+      expiresIn: '15m', // 15 minutes
     });
+    const refreshToken = this.generateRefreshToken();
+    const refreshTokenExpiry = new Date();
+    refreshTokenExpiry.setDate(refreshTokenExpiry.getDate() + 7); // 7 days expiry
+    const hashedRefreshToken = await this.hashRefreshToken(refreshToken);
 
-    // Encrypt the JWT token before sending
-    const encryptedToken = this.encryptToken(jwtToken);
+    await this.usersService.updateUser(user.id, {
+      refreshToken: hashedRefreshToken,
+      refreshTokenExpiry: refreshTokenExpiry,
+    } as UpdateUserDTO);
 
-    this.logger.log(`User logged in successfully: ${email}`);
-    this.logger.warn(`[DEV MODE] Original JWT: ${jwtToken}`);
-    this.logger.warn(`[DEV MODE] Encrypted Token: ${encryptedToken}`);
-
-    return { access_token: encryptedToken };
+    return {
+      accessToken: jwtToken,
+      refreshToken: refreshToken,
+      user: user,
+    };
   }
 
   // GOOGLE OAUTH
@@ -205,7 +259,9 @@ export class AuthService {
       // If user exists but registered with email, update authProvider if needed
       if (existingUser.authProvider !== 'google') {
         // Optionally update authProvider or throw error
-        this.logger.warn(`User ${user.email} exists with ${existingUser.authProvider} auth, attempting Google login`);
+        this.logger.warn(
+          `User ${user.email} exists with ${existingUser.authProvider} auth, attempting Google login`,
+        );
       }
     }
 
@@ -221,17 +277,27 @@ export class AuthService {
 
     // Sign JWT
     const jwtToken = this.jwtService.sign(payload, {
-      expiresIn: '7d',
+      expiresIn: '15m', // 15 minutes
     });
-
-    // Encrypt the JWT token before sending
-    const encryptedToken = this.encryptToken(jwtToken);
+    const refreshToken = this.generateRefreshToken();
+    const refreshTokenExpiry = new Date();
+    refreshTokenExpiry.setDate(refreshTokenExpiry.getDate() + 7); // 7 days expiry
+    const hashedRefreshToken = await this.hashRefreshToken(refreshToken);
+    // Store hashed refresh token in database
+    await this.usersService.updateUser(existingUser.id, {
+      refreshToken: hashedRefreshToken,
+      refreshTokenExpiry,
+    } as UpdateUserDTO);
 
     this.logger.log(`Google user logged in successfully: ${user.email}`);
-    this.logger.warn(`[DEV MODE] Original JWT: ${jwtToken}`);
-    this.logger.warn(`[DEV MODE] Encrypted Token: ${encryptedToken}`);
+    this.logger.warn(`[DEV MODE] Access Token (JWT): ${jwtToken}`);
+    this.logger.warn(`[DEV MODE] Refresh Token: ${refreshToken}`);
 
-    return { access_token: encryptedToken, user: existingUser };
+    return {
+      accessToken: jwtToken,
+      refreshToken: refreshToken,
+      user: existingUser,
+    };
   }
 
   // VERIFY EMAIL
@@ -245,8 +311,13 @@ export class AuthService {
     }
 
     // Check if token is expired
-    if (user.verificationTokenExpiry && new Date() > user.verificationTokenExpiry) {
-      throw new BadRequestException('Verification token has expired. Please request a new one.');
+    if (
+      user.verificationTokenExpiry &&
+      new Date() > user.verificationTokenExpiry
+    ) {
+      throw new BadRequestException(
+        'Verification token has expired. Please request a new one.',
+      );
     }
 
     // Check if already verified
@@ -273,7 +344,10 @@ export class AuthService {
     const user = await this.usersService.findUserByEmail(email);
     if (!user) {
       // Don't reveal if user exists or not for security
-      return { message: 'If an account exists with this email, a verification link has been sent.' };
+      return {
+        message:
+          'If an account exists with this email, a verification link has been sent.',
+      };
     }
 
     if (user.isVerified) {
@@ -300,8 +374,13 @@ export class AuthService {
       );
       this.logger.log(`Verification email resent to: ${email}`);
     } catch (error) {
-      this.logger.error(`Failed to resend verification email to ${email}:`, error);
-      throw new BadRequestException('Failed to send verification email. Please try again later.');
+      this.logger.error(
+        `Failed to resend verification email to ${email}:`,
+        error,
+      );
+      throw new BadRequestException(
+        'Failed to send verification email. Please try again later.',
+      );
     }
 
     return { message: 'Verification email sent. Please check your inbox.' };
@@ -310,28 +389,30 @@ export class AuthService {
   // CLEANUP EXPIRED UNVERIFIED ACCOUNTS
   async cleanupExpiredUnverifiedAccounts() {
     this.logger.log('Starting cleanup of expired unverified accounts...');
-    
+
     const deletedCount = await this.usersService.deleteExpiredUnverifiedUsers();
-    
+
     this.logger.log(`Cleaned up ${deletedCount} expired unverified accounts`);
-    
-    return { 
+
+    return {
       message: `Cleaned up ${deletedCount} expired unverified accounts`,
-      deletedCount 
+      deletedCount,
     };
   }
 
   // AUTOMATIC CLEANUP - Runs daily at 2 AM
   @Cron(CronExpression.EVERY_DAY_AT_2AM)
   async handleCron() {
-    this.logger.log('Running scheduled cleanup of expired unverified accounts...');
+    this.logger.log(
+      'Running scheduled cleanup of expired unverified accounts...',
+    );
     await this.cleanupExpiredUnverifiedAccounts();
   }
 
   // GET PASSWORD HASH (Development/Testing only)
   async getPasswordHash(email: string) {
     this.logger.warn(`[DEV MODE] Password hash requested for: ${email}`);
-    
+
     const user = await this.usersService.findUserByEmail(email);
     if (!user) {
       throw new BadRequestException('User not found');
@@ -341,7 +422,8 @@ export class AuthService {
       email: user.email,
       hashedPassword: user.password,
       authProvider: user.authProvider,
-      message: '⚠️ This is for development/testing only. Passwords are hashed with bcrypt and cannot be decrypted.',
+      message:
+        '⚠️ This is for development/testing only. Passwords are hashed with bcrypt and cannot be decrypted.',
       note: 'To verify a password, use the login endpoint which compares the password against this hash.',
     };
   }
@@ -349,7 +431,7 @@ export class AuthService {
   // GET VERIFICATION TOKEN (Development/Testing only)
   async getVerificationTokenByEmail(email: string) {
     this.logger.log(`Getting verification token for: ${email}`);
-    
+
     const user = await this.usersService.findUserByEmail(email);
     if (!user) {
       throw new BadRequestException('User not found');
@@ -360,7 +442,9 @@ export class AuthService {
     }
 
     if (!user.verificationToken) {
-      throw new BadRequestException('No verification token found for this user');
+      throw new BadRequestException(
+        'No verification token found for this user',
+      );
     }
 
     const verificationUrl = `${process.env.FRONTEND_URL || 'http://localhost:3001'}/verify-email?token=${user.verificationToken}`;
@@ -372,26 +456,103 @@ export class AuthService {
       verificationUrl,
       apiUrl,
       expiresAt: user.verificationTokenExpiry,
-      message: 'Use this token to verify your email. This endpoint is for development/testing only.',
+      message:
+        'Use this token to verify your email. This endpoint is for development/testing only.',
     };
   }
 
-  // ENCRYPT TOKEN (AES-256-CBC)
-  private encryptToken(token: string): string {
-    const algorithm = 'aes-256-cbc';
-    // Use JWT_SECRET from env, pad or truncate to 32 characters for AES-256
-    const jwtSecret = this.configService.get<string>('JWT_SECRET') ;
-    const secretKey = jwtSecret.padEnd(32, '0').substring(0, 32); // Ensure exactly 32 chars
-    
-    const iv = crypto.randomBytes(16); // Initialization vector
 
-    const cipher = crypto.createCipheriv(algorithm, Buffer.from(secretKey), iv);
-    let encrypted = cipher.update(token, 'utf8', 'hex');
-    encrypted += cipher.final('hex');
+  // REFRESH TOKEN
+async refreshToken(refreshToken: string) {
+  this.logger.log(`Refresh token attempt`);
 
-    // Return IV + encrypted data (IV is needed for decryption)
-    return iv.toString('hex') + ':' + encrypted;
+  if (!refreshToken) {
+    throw new UnauthorizedException('Refresh token is required');
+  }
+
+  // Find user by comparing refresh token against all hashed tokens
+  const usersWithTokens = await this.usersService.findUsersWithRefreshTokens();
+  let user = null;
+
+  for (const u of usersWithTokens) {
+    if (u.refreshToken && await this.compareRefreshToken(refreshToken, u.refreshToken)) {
+      user = await this.usersService.findUserById(u.id);
+      break;
+    }
+  }
+
+  if (!user) {
+    throw new UnauthorizedException('Invalid refresh token');
+  }
+
+  // Check if refresh token is expired
+  if (user.refreshTokenExpiry && new Date() > user.refreshTokenExpiry) {
+    // Delete expired refresh token
+    await this.usersService.updateUser(user.id, {
+      refreshToken: '',
+      refreshTokenExpiry: new Date(),
+    } as UpdateUserDTO);
+    throw new UnauthorizedException('Refresh token has expired. Please login again.');
+  }
+
+  // Check if user is still active
+  if (!user.isActive) {
+    throw new UnauthorizedException('User account is inactive');
+  }
+
+  // Generate new access token
+  const payload = {
+    sub: user.id,
+    email: user.email,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    phone: user.phone,
+    role: user.role,
+  };
+
+  const jwtToken = this.jwtService.sign(payload, {
+    expiresIn: '15m', // 15 minutes
+  });
+
+  // TOKEN ROTATION: Generate new refresh token and delete old one
+  const newRefreshToken = this.generateRefreshToken();
+  const newRefreshTokenExpiry = new Date();
+  newRefreshTokenExpiry.setDate(newRefreshTokenExpiry.getDate() + 7); // 7 days
+
+  // Hash new refresh token before storing
+  const hashedNewRefreshToken = await this.hashRefreshToken(newRefreshToken);
+
+  // Update user with new refresh token (this replaces the old one)
+  await this.usersService.updateUser(user.id, {
+    refreshToken: hashedNewRefreshToken,
+    refreshTokenExpiry: newRefreshTokenExpiry,
+  } as UpdateUserDTO);
+
+  this.logger.log(`Token refreshed successfully for: ${user.email}`);
+  this.logger.warn(`[DEV MODE] New Access Token: ${jwtToken}`);
+  this.logger.warn(`[DEV MODE] New Refresh Token: ${newRefreshToken}`);
+
+  // Return tokens to be set as cookies (not in JSON response)
+  return {
+    accessToken: jwtToken, // Plain JWT (not encrypted)
+    refreshToken: newRefreshToken, // Rotated - new token
+  };
+}
+// REVOKE REFRESH TOKEN
+async revokeRefreshToken(refreshToken: string) {
+  // Find user by comparing refresh token against all hashed tokens
+  const usersWithTokens = await this.usersService.findUsersWithRefreshTokens();
+  
+  for (const u of usersWithTokens) {
+    if (u.refreshToken && await this.compareRefreshToken(refreshToken, u.refreshToken)) {
+      // Delete refresh token from database
+      await this.usersService.updateUser(u.id, {
+        refreshToken: null,
+        refreshTokenExpiry: new Date(),
+      } as UpdateUserDTO);
+      this.logger.log(`Refresh token revoked for user: ${u.email}`);
+      return;
+    }
   }
 }
-
-
+}

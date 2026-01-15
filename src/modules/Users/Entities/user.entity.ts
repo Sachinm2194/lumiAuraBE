@@ -48,6 +48,12 @@ export class User {
   @Column({ type: 'timestamptz', nullable: true })
   verificationTokenExpiry: Date;
 
+  @Column({ nullable: true })
+  refreshToken: string;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  refreshTokenExpiry: Date;
+
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 

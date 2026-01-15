@@ -1,8 +1,19 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
+import { Request } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { UsersService } from '../Users/users.service';
+
+// Custom extractor to get JWT from cookies (no decryption needed - tokens are plain JWT)
+const cookieExtractor = (req: Request): string | null => {
+  let token = null;
+  if (req && req.cookies) {
+    // Get token from cookie (try new name first, fallback to old name for compatibility)
+    token = req.cookies['lumi_a_t'] || req.cookies['access_token'] || null;
+  }
+  return token;
+};
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -11,7 +22,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     private readonly usersService: UsersService,
   ) {
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      jwtFromRequest: ExtractJwt.fromExtractors([
+        cookieExtractor, // Try cookie first (plain JWT, no decryption)
+        ExtractJwt.fromAuthHeaderAsBearerToken(), // Fallback to Authorization header
+      ]),
       ignoreExpiration: false,
       secretOrKey: configService.get<string>('JWT_SECRET')!,
     });

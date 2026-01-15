@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { Repository } from 'typeorm';
+import { IsNull, Not, Repository } from 'typeorm';
 import { User } from './Entities/user.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { CreateUserDTO } from './DTO/createUserDTO.dto';
@@ -51,6 +51,12 @@ export class UsersService {
       .execute();
     
     return result.affected || 0;
+  }
+  async findUsersWithRefreshTokens() {
+    return this.userRepository.find({
+      where: { refreshToken: Not(IsNull()) },
+      select: ['id', 'email', 'refreshToken', 'refreshTokenExpiry', 'isActive'],
+    });
   }
 
   async findUnverifiedUsers() {

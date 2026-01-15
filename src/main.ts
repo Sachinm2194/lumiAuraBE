@@ -3,6 +3,7 @@ import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
+import cookieParser from 'cookie-parser';
 
 
 async function bootstrap() {
@@ -13,9 +14,10 @@ async function bootstrap() {
     prefix: '/uploads/', // URL prefix for accessing images
   });
 
+  app.use(cookieParser());
   // Enable CORS
   app.enableCors({
-    origin: ['http://localhost:3001', 'https://your-frontend-domain.com'],
+    origin: ['http://localhost:3000', 'https://your-frontend-domain.com'],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
   });
