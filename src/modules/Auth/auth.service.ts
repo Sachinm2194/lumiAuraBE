@@ -172,7 +172,7 @@ export class AuthService {
     // Check if user registered with Google (no password)
     if (user.authProvider === 'google' || !user.password) {
       throw new UnauthorizedException(
-        'Please use Google login for this account',
+        'This account is registered with Google. Please sign in using Google.',
       );
     }
 

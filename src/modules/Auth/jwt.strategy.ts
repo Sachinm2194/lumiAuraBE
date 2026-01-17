@@ -9,8 +9,8 @@ import { UsersService } from '../Users/users.service';
 const cookieExtractor = (req: Request): string | null => {
   let token = null;
   if (req && req.cookies) {
-    // Get token from cookie (try new name first, fallback to old name for compatibility)
-    token = req.cookies['lumi_a_t'] || req.cookies['access_token'] || null;
+    // Get token from cookie - using lumi_a_t as the standard cookie name
+    token = req.cookies['lumi_a_t'] || null;
   }
   return token;
 };

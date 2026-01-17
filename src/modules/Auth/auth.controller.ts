@@ -87,7 +87,7 @@ export class AuthController {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      maxAge: 15 * 60 * 1000, // 15 minutes
+      maxAge: 15 * 60 * 1000, // 15 minutes (matches JWT expiry)
       path: '/',
     });
   
@@ -100,8 +100,8 @@ export class AuthController {
     });
   
     // Redirect to frontend
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
-    return res.redirect(`${frontendUrl}/auth/success`);
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    return res.redirect(`${frontendUrl}/success`);
   }
 
   @Get('verify-email')
@@ -148,7 +148,7 @@ export class AuthController {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      maxAge: 15 * 60 * 1000, // 15 minutes
+      maxAge: 15 * 60 * 1000, // 15 minutes (matches JWT expiry)
       path: '/',
     });
 
