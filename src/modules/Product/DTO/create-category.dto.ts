@@ -1,5 +1,5 @@
-// src/modules/products/dto/create-category.dto.ts
-import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
+// src/modules/Product/DTO/create-category.dto.ts
+import { IsString, IsNotEmpty, IsOptional, IsNumber } from 'class-validator';
 
 export class CreateCategoryDto {
   @IsString()
@@ -8,5 +8,13 @@ export class CreateCategoryDto {
 
   @IsOptional()
   @IsString()
+  slug?: string;
+
+  @IsOptional()
+  @IsString()
   description?: string;
+
+  @IsOptional()
+  @IsNumber()
+  parentId?: number; // Add this to support subcategories
 }

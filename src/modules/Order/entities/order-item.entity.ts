@@ -1,3 +1,4 @@
+// src/modules/Order/entities/order-item.entity.ts
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -27,6 +28,10 @@ export class OrderItem {
   @Column()
   productId: number;
 
+  // Add variantId to track which variant was ordered
+  @Column({ nullable: true })
+  variantId: number;
+
   @Column()
   quantity: number;
 
@@ -45,6 +50,9 @@ export class OrderItem {
 
   @Column('json', { nullable: true })
   productVariant: {
+    variantId?: number;
+    variantName?: string;
+    sku?: string;
     size?: string;
     color?: string;
     [key: string]: any;

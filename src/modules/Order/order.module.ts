@@ -8,10 +8,11 @@ import { OrderItem } from './entities/order-item.entity';
 import { Product } from '../Product/Entities/product.entity';
 import { AuthModule } from '../Auth/auth.module';
 import { NotificationModule } from '../Notification/notification.module';
+import { ProductVariant } from '../Product/Entities/product-variant.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Order, OrderItem, Product]),
+    TypeOrmModule.forFeature([Order, OrderItem, Product, ProductVariant]),
     AuthModule,
     NotificationModule,
   ],

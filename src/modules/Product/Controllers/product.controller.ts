@@ -9,15 +9,16 @@ import {
   ParseIntPipe,
   UseInterceptors,
   UploadedFiles,
+  Query,
   Put,
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
-import { ProductService } from './product.service';
-import { CreateProductDto } from './DTO/create-product.dto';
-import { UpdateProductDto } from './DTO/update-product.dto';
-import { DeleteMultipleProductsDto } from './DTO/delete-multiple-products.dto';
+import { ProductService } from '../Services/product.service';
+import { CreateProductDto } from '../DTO/create-product.dto';
+import { UpdateProductDto } from '../DTO/update-product.dto';
+import { DeleteMultipleProductsDto } from '../DTO/delete-multiple-products.dto';
 
 @Controller('products')
 export class ProductController {
@@ -45,18 +46,35 @@ export class ProductController {
   }
 
   @Get()
-  findAll() {
-    return this.productsService.findAll();
+  findAll(@Query('includeReviews') includeReviews?: string) {
+    return this.productsService.findAll({
+      includeReviews: includeReviews === 'true',
+    });
   }
 
   @Get('byId/:id')
-  findOneById(@Param('id', ParseIntPipe) id: number) {
-    return this.productsService.findOneById(id);
+  findOneById(
+    @Param('id', ParseIntPipe) id: number,
+    @Query('includeReviews') includeReviews?: string,
+  ) {
+    return this.productsService.findOneById(id, includeReviews === 'true');
   }
 
   @Get('guid/:productId')
-  findOneByGuid(@Param('productId') productId: string) {
-    return this.productsService.findOneByGuid(productId);
+  findOneByGuid(
+    @Param('productId') productId: string,
+    @Query('includeReviews') includeReviews?: string,
+  ) {
+    return this.productsService.findOneByGuid(productId, includeReviews === 'true');
+  }
+
+  // Add this new endpoint
+  @Get('slug/:slug')
+  findBySlug(
+    @Param('slug') slug: string,
+    @Query('includeReviews') includeReviews?: string,
+  ) {
+    return this.productsService.findBySlug(slug, includeReviews === 'true');
   }
 
   @Patch('update/:id')

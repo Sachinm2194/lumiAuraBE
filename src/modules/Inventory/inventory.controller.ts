@@ -10,6 +10,9 @@ import {
 import { InventoryService } from './inventory.service';
 import { AdminGuard } from '../Auth/guards/admin.guard';
 
+// src/modules/Inventory/inventory.controller.ts
+// ... existing imports ...
+
 @Controller('inventory')
 @UseGuards(AdminGuard)
 export class InventoryController {
@@ -30,6 +33,7 @@ export class InventoryController {
     @Param('productId') productId: number,
     @Body('quantity') quantity: number,
   ) {
-    return this.inventoryService.updateStock(productId, quantity);
+    // Updated to use updateProductStock (works with default variant)
+    return this.inventoryService.updateProductStock(productId, quantity);
   }
 }

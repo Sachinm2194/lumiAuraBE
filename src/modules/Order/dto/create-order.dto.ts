@@ -1,3 +1,4 @@
+// src/modules/Order/dto/create-order.dto.ts
 import { IsNotEmpty, IsArray, ValidateNested, IsOptional, IsString, IsNumber, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -5,6 +6,10 @@ export class CreateOrderItemDto {
   @IsNotEmpty()
   @IsNumber()
   productId: number;
+
+  @IsOptional()
+  @IsNumber()
+  variantId?: number; // Add variantId - if not provided, will use default variant
 
   @IsNotEmpty()
   @IsNumber()
@@ -19,6 +24,7 @@ export class CreateOrderItemDto {
   };
 }
 
+// ... rest of the DTO remains the same ...
 export class ShippingAddressDto {
   @IsNotEmpty()
   @IsString()

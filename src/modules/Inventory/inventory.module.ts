@@ -4,10 +4,11 @@ import { InventoryService } from './inventory.service';
 import { InventoryController } from './inventory.controller';
 import { Product } from '../Product/Entities/product.entity';
 import { AuthModule } from '../Auth/auth.module';
+import { ProductVariant } from '../Product/Entities/product-variant.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Product]),
+    TypeOrmModule.forFeature([Product, ProductVariant]),
     AuthModule,
   ],
   controllers: [InventoryController],

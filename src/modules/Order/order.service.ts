@@ -1,3 +1,4 @@
+// src/modules/Order/order.service.ts
 import {
   Injectable,
   NotFoundException,
@@ -8,6 +9,7 @@ import { Repository } from 'typeorm';
 import { Order, OrderStatus, PaymentStatus } from './entities/order.entity';
 import { OrderItem } from './entities/order-item.entity';
 import { Product } from '../Product/Entities/product.entity';
+import { ProductVariant } from '../Product/Entities/product-variant.entity';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 
@@ -20,6 +22,8 @@ export class OrderService {
     private orderItemRepository: Repository<OrderItem>,
     @InjectRepository(Product)
     private productRepository: Repository<Product>,
+    @InjectRepository(ProductVariant)
+    private variantRepository: Repository<ProductVariant>,
   ) {}
 
   async create(createOrderDto: CreateOrderDto, userId: number): Promise<Order> {
@@ -30,8 +34,10 @@ export class OrderService {
     const orderItems: Partial<OrderItem>[] = [];
 
     for (const item of items) {
+      // Load product with variants
       const product = await this.productRepository.findOne({
         where: { id: item.productId },
+        relations: ['variants', 'images'],
       });
 
       if (!product) {
@@ -40,23 +46,54 @@ export class OrderService {
         );
       }
 
-      if (product.quantity < item.quantity) {
+      if (!product.variants || product.variants.length === 0) {
         throw new BadRequestException(
-          `Insufficient stock for product ${product.name}. Available: ${product.quantity}, Requested: ${item.quantity}`,
+          `Product ${product.name} has no variants available`,
         );
       }
 
-      const itemTotal = Number(product.price) * item.quantity;
+      // Find variant - use variantId from item if provided, otherwise use default or first variant
+      let variant: ProductVariant;
+      if (item.variantId) {
+        variant = product.variants.find((v) => v.id === item.variantId);
+        if (!variant) {
+          throw new NotFoundException(
+            `Variant with ID ${item.variantId} not found for product ${product.name}`,
+          );
+        }
+      } else {
+        // Use default variant or first variant
+        variant = product.variants.find((v) => v.isDefault) || product.variants[0];
+      }
+
+      // Check stock from variant
+      if (variant.quantity < item.quantity) {
+        throw new BadRequestException(
+          `Insufficient stock for ${product.name} - ${variant.variantName}. Available: ${variant.quantity}, Requested: ${item.quantity}`,
+        );
+      }
+
+      // Use variant price
+      const itemTotal = Number(variant.sellingPrice) * item.quantity;
       subtotal += itemTotal;
+
+      // Get primary image
+      const primaryImage = product.images?.find((img) => img.isPrimary) || product.images?.[0];
 
       orderItems.push({
         productId: product.id,
+        variantId: variant.id,
         quantity: item.quantity,
-        price: product.price,
+        price: variant.sellingPrice,
         total: itemTotal,
         productName: product.name,
-        productImage: product.images?.[0] || undefined,
-        productVariant: item.productVariant,
+        productImage: primaryImage?.imageUrl || undefined,
+        productVariant: {
+          variantId: variant.id,
+          variantName: variant.variantName,
+          sku: variant.sku,
+          ...item.productVariant, // Include any additional variant data from DTO
+        },
       });
     }
 
@@ -72,10 +109,10 @@ export class OrderService {
     const order = this.orderRepository.create({
       orderNumber,
       userId,
-      subtotal: Number(subtotal),
-      tax: Number(tax),
-      shipping: Number(shipping),
-      total: Number(total),
+      subtotal: Number(subtotal.toFixed(2)),
+      tax: Number(tax.toFixed(2)),
+      shipping: Number(shipping.toFixed(2)),
+      total: Number(total.toFixed(2)),
       shippingAddress,
       billingAddress: billingAddress || shippingAddress,
       notes,
@@ -85,7 +122,7 @@ export class OrderService {
 
     const savedOrder = await this.orderRepository.save(order);
 
-    // Create order items
+    // Create order items and update inventory
     for (const itemData of orderItems) {
       const orderItem = this.orderItemRepository.create({
         ...itemData,
@@ -93,10 +130,10 @@ export class OrderService {
       });
       await this.orderItemRepository.save(orderItem);
 
-      // Update product inventory
-      if (itemData.productId && itemData.quantity) {
-        await this.productRepository.decrement(
-          { id: itemData.productId },
+      // Update variant inventory
+      if (itemData.variantId && itemData.quantity) {
+        await this.variantRepository.decrement(
+          { id: itemData.variantId },
           'quantity',
           itemData.quantity,
         );
@@ -186,11 +223,11 @@ export class OrderService {
       );
     }
 
-    // Restore inventory
+    // Restore variant inventory
     for (const item of order.items) {
-      if (item.productId && item.quantity) {
-        await this.productRepository.increment(
-          { id: item.productId },
+      if (item.variantId && item.quantity) {
+        await this.variantRepository.increment(
+          { id: item.variantId },
           'quantity',
           item.quantity,
         );

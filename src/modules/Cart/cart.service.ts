@@ -43,10 +43,14 @@ import { Product } from '../Product/Entities/product.entity';
     async addToCart(userId: number, productId: number, quantity: number) {
       const cart = await this.getOrCreateCart(userId);
   
-      const product = await this.productRepo.findOne({ where: { id: productId } });
+      const product = await this.productRepo.findOne({ where: { id: productId }, relations: ['variants'] });
       if (!product) throw new NotFoundException('Product not found');
   
-      if (product.quantity < quantity) {
+      const variant = product.variants?.find(v => v.isDefault) || product.variants?.[0];
+      if (!variant) throw new BadRequestException('Product has no variants');
+    
+      // Check stock from variant
+      if (variant.quantity < quantity) {
         throw new BadRequestException('Not enough stock available');
       }
   

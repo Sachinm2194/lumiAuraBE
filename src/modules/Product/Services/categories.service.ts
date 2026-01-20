@@ -2,9 +2,9 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Category } from './Entities/category.entity';
-import { CreateCategoryDto } from './DTO/create-category.dto';
-import { UpdateCategoryDto } from './DTO/update-category.dto';
+import { Category } from '../Entities/category.entity';
+import { CreateCategoryDto } from '../DTO/create-category.dto';
+import { UpdateCategoryDto } from '../DTO/update-category.dto';
 
 
 @Injectable()
