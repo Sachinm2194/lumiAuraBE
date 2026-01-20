@@ -9,7 +9,7 @@ import {
   ValidateNested,
   ArrayMinSize,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 
 export class CreateProductVariantDto {
   @IsString()
@@ -57,11 +57,31 @@ export class CreateProductDto {
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      try {
+        return JSON.parse(value);
+      } catch {
+        return value;
+      }
+    }
+    return Array.isArray(value) ? value : [];
+  })
   ingredients?: string[];
 
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      try {
+        return JSON.parse(value);
+      } catch {
+        return value;
+      }
+    }
+    return Array.isArray(value) ? value : [];
+  })
   benefits?: string[];
 
   @IsOptional()
@@ -75,11 +95,31 @@ export class CreateProductDto {
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      try {
+        return JSON.parse(value);
+      } catch {
+        return value;
+      }
+    }
+    return Array.isArray(value) ? value : [];
+  })
   skinType?: string[];
 
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      try {
+        return JSON.parse(value);
+      } catch {
+        return value;
+      }
+    }
+    return Array.isArray(value) ? value : [];
+  })
   concerns?: string[];
 
   @IsOptional()
@@ -107,12 +147,33 @@ export class CreateProductDto {
   @ArrayMinSize(1)
   @ValidateNested({ each: true })
   @Type(() => CreateProductVariantDto)
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      try {
+        return JSON.parse(value);
+      } catch {
+        return value;
+      }
+    }
+    return Array.isArray(value) ? value : [];
+  })
   variants: CreateProductVariantDto[];
 
   // Tags - optional array of tag IDs
   @IsOptional()
   @IsArray()
   @IsNumber({}, { each: true })
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      try {
+        const parsed = JSON.parse(value);
+        return Array.isArray(parsed) ? parsed.map((id) => Number(id)) : [];
+      } catch {
+        return [];
+      }
+    }
+    return Array.isArray(value) ? value.map((id) => Number(id)) : [];
+  })
   tagIds?: number[];
 
   // Images will be handled via file upload

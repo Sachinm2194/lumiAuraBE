@@ -83,6 +83,7 @@ export class ProductService {
       shortDescription: dto.shortDescription,
       description: dto.description,
       ingredients: dto.ingredients,
+      benefits: dto.benefits,
       howToUse: dto.howToUse,
       warnings: dto.warnings,
       skinType: dto.skinType,
