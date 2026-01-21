@@ -1,8 +1,8 @@
-import { IsNumber, IsNotEmpty } from 'class-validator';
+import { IsUUID, IsNotEmpty } from 'class-validator';
 
 export class RemoveFromWishlistDto {
-  @IsNumber()
+  @IsUUID()
   @IsNotEmpty()
-  productId: number;
+  productId: string;
 }
 

@@ -25,7 +25,8 @@ export class OrderController {
 
   @Post()
   async create(@Body() createOrderDto: CreateOrderDto, @Request() req: any) {
-    const order = await this.orderService.create(createOrderDto, req.user.id);
+    const userId = req.user.userId; // Get UUID from JWT
+    const order = await this.orderService.create(createOrderDto, userId);
 
     return {
       order,
@@ -37,7 +38,7 @@ export class OrderController {
   findAll(@Request() req: any, @Query('admin') isAdmin?: string) {
     // If user is admin, return all orders, otherwise return user's orders
     const userId =
-      isAdmin === 'true' && req.user.role === 'admin' ? undefined : req.user.id;
+      isAdmin === 'true' && req.user.role === 'admin' ? undefined : req.user.userId;
     return this.orderService.findAll(userId);
   }
 

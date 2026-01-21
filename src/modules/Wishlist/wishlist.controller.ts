@@ -5,7 +5,6 @@ import {
   Get,
   Param,
   Body,
-  ParseIntPipe,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -35,7 +34,7 @@ export class WishlistController {
   /** 🗑 Remove product from wishlist */
   @Delete('remove/:productId')
   removeFromWishlist(
-    @Param('productId', ParseIntPipe) productId: number,
+    @Param('productId') productId: string, // UUID string
     @Req() req,
   ) {
     const userId = req.user.userId;
@@ -59,7 +58,7 @@ export class WishlistController {
   /** ✅ Check if product is in wishlist */
   @Get('check/:productId')
   checkInWishlist(
-    @Param('productId', ParseIntPipe) productId: number,
+    @Param('productId') productId: string, // UUID string
     @Req() req,
   ) {
     const userId = req.user.userId;

@@ -1,9 +1,9 @@
-import { IsNumber, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsUUID, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class AddToWishlistDto {
-  @IsNumber()
+  @IsUUID()
   @IsNotEmpty()
-  productId: number;
+  productId: string;
 
   @IsOptional()
   @IsString()

@@ -15,6 +15,7 @@ import { TagController } from './Controllers/tag.controller';
 import { ProductReviewService } from './Services/product-review.service';
 import { ProductReviewController } from './Controllers/product-review.controller';
 import { CategoriesService } from './Services/categories.service'; // Add if missing
+import { User } from '../Users/Entities/user.entity';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { CategoriesService } from './Services/categories.service'; // Add if mis
       ProductTag,
       Tag,
       ProductReview, // Add this - CRITICAL!
+      User,
     ]),
   ],
   controllers: [

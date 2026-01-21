@@ -1,9 +1,9 @@
-import { IsNumber, IsNotEmpty, Min } from 'class-validator';
+import { IsUUID, IsNotEmpty, IsNumber, Min } from 'class-validator';
 
 export class AddToCartDto {
-  @IsNumber()
+  @IsUUID()
   @IsNotEmpty()
-  productId: number;
+  productId: string;
 
   @IsNumber()
   @IsNotEmpty()

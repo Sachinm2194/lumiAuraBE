@@ -41,12 +41,13 @@ import { Product } from '../Product/Entities/product.entity';
     }
   
     /** ➕ Add product to cart */
-    async addToCart(userId: string, productId: number, quantity: number) {
+    async addToCart(userId: string, productId: string, quantity: number) { // productId is UUID
       const cart = await this.getOrCreateCart(userId);
   
-      const product = await this.productRepo.findOne({ where: { id: productId }, relations: ['variants'] });
+      // Find product by UUID
+      const product = await this.productRepo.findOne({ where: { productId: productId }, relations: ['variants'] });
       if (!product) throw new NotFoundException('Product not found');
-  
+
       const variant = product.variants?.find(v => v.isDefault) || product.variants?.[0];
       if (!variant) throw new BadRequestException('Product has no variants');
     
@@ -55,7 +56,7 @@ import { Product } from '../Product/Entities/product.entity';
         throw new BadRequestException('Not enough stock available');
       }
   
-      let cartItem = cart.items.find((item) => item.product.id === productId);
+      let cartItem = cart.items.find((item) => item.product.id === product.id);
   
       if (cartItem) {
         cartItem.quantity += quantity;
@@ -69,10 +70,14 @@ import { Product } from '../Product/Entities/product.entity';
     }
   
     /** 🗑 Remove product from cart */
-    async removeFromCart(userId: string, productId: number) {
+    async removeFromCart(userId: string, productId: string) { // productId is UUID
       const cart = await this.getOrCreateCart(userId);
   
-      const cartItem = cart.items.find((item) => item.product.id === productId);
+      // Find product by UUID
+      const product = await this.productRepo.findOne({ where: { productId: productId } });
+      if (!product) throw new NotFoundException('Product not found');
+
+      const cartItem = cart.items.find((item) => item.product.id === product.id);
       if (!cartItem) throw new NotFoundException('Product not in cart');
   
       await this.cartItemRepo.remove(cartItem);

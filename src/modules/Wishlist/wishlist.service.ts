@@ -23,14 +23,15 @@ export class WishlistService {
   /** ➕ Add product to wishlist */
   async addToWishlist(
     userId: string,
-    productId: number,
+    productId: string, // UUID
     notes?: string,
   ): Promise<WishlistItem[]> {
     const user = await this.userRepo.findOne({ where: { userId: userId } });
     if (!user) throw new NotFoundException('User not found');
 
+    // Find product by UUID
     const product = await this.productRepo.findOne({
-      where: { id: productId },
+      where: { productId: productId },
       relations: ['variants'],
     });
     if (!product) throw new NotFoundException('Product not found');
@@ -39,7 +40,7 @@ export class WishlistService {
     const existingItem = await this.wishlistItemRepo.findOne({
       where: {
         userId: user.id,
-        product: { id: productId },
+        product: { id: product.id },
       },
     });
 
@@ -62,15 +63,21 @@ export class WishlistService {
   /** 🗑 Remove product from wishlist */
   async removeFromWishlist(
     userId: string,
-    productId: number,
+    productId: string, // UUID
   ): Promise<{ message: string }> {
     const user = await this.userRepo.findOne({ where: { userId: userId } });
     if (!user) throw new NotFoundException('User not found');
 
+    // Find product by UUID
+    const product = await this.productRepo.findOne({
+      where: { productId: productId },
+    });
+    if (!product) throw new NotFoundException('Product not found');
+
     const wishlistItem = await this.wishlistItemRepo.findOne({
       where: {
         userId: user.id,
-        product: { id: productId },
+        product: { id: product.id },
       },
     });
 
@@ -107,15 +114,21 @@ export class WishlistService {
   /** ✅ Check if product is in wishlist */
   async isInWishlist(
     userId: string,
-    productId: number,
+    productId: string, // UUID
   ): Promise<{ isInWishlist: boolean }> {
     const user = await this.userRepo.findOne({ where: { userId: userId } });
     if (!user) throw new NotFoundException('User not found');
 
+    // Find product by UUID
+    const product = await this.productRepo.findOne({
+      where: { productId: productId },
+    });
+    if (!product) throw new NotFoundException('Product not found');
+
     const item = await this.wishlistItemRepo.findOne({
       where: {
         userId: user.id,
-        product: { id: productId },
+        product: { id: product.id },
       },
     });
 

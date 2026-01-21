@@ -6,17 +6,11 @@ import {
     Get,
     Param,
     Body,
-    ParseIntPipe,
     Req,
     UseGuards,
   } from '@nestjs/common';
   import { CartService } from './cart.service';
-  import { 
-    AddToCartDto, 
-    RemoveFromCartDto, 
-    ClearCartDto, 
-    GetCartDto 
-  } from './DTO';
+  import { AddToCartDto } from './DTO';
   import { JwtAuthGuard } from '../Auth/guards/jwt-auth.guard';
   
   @Controller('cart')
@@ -34,7 +28,7 @@ import {
     /** 🗑 Remove product from cart */
     @Delete('remove/:productId')
     removeFromCart( 
-      @Param('productId', ParseIntPipe) productId: number,
+      @Param('productId') productId: string, // UUID string
       @Req() req,
     ) {
       const userId = req.user.userId;

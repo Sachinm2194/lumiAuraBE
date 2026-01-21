@@ -10,6 +10,7 @@ import { Order, OrderStatus, PaymentStatus } from './entities/order.entity';
 import { OrderItem } from './entities/order-item.entity';
 import { Product } from '../Product/Entities/product.entity';
 import { ProductVariant } from '../Product/Entities/product-variant.entity';
+import { User } from '../Users/Entities/user.entity';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 
@@ -24,9 +25,17 @@ export class OrderService {
     private productRepository: Repository<Product>,
     @InjectRepository(ProductVariant)
     private variantRepository: Repository<ProductVariant>,
+    @InjectRepository(User)
+    private userRepository: Repository<User>,
   ) {}
 
-  async create(createOrderDto: CreateOrderDto, userId: number): Promise<Order> {
+  async create(createOrderDto: CreateOrderDto, userId: string): Promise<Order> {
+    // Find user by UUID
+    const user = await this.userRepository.findOne({ where: { userId: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
     const { items, shippingAddress, billingAddress, notes } = createOrderDto;
 
     // Validate products and calculate totals
@@ -34,9 +43,9 @@ export class OrderService {
     const orderItems: Partial<OrderItem>[] = [];
 
     for (const item of items) {
-      // Load product with variants
+      // Load product with variants by UUID productId
       const product = await this.productRepository.findOne({
-        where: { id: item.productId },
+        where: { productId: item.productId },
         relations: ['variants', 'images'],
       });
 
@@ -108,7 +117,7 @@ export class OrderService {
     // Create order
     const order = this.orderRepository.create({
       orderNumber,
-      userId,
+      userId: user.id, // Use integer ID for foreign key
       subtotal: Number(subtotal.toFixed(2)),
       tax: Number(tax.toFixed(2)),
       shipping: Number(shipping.toFixed(2)),
@@ -143,8 +152,16 @@ export class OrderService {
     return this.findOne(savedOrder.id);
   }
 
-  async findAll(userId?: number): Promise<Order[]> {
-    const where = userId ? { userId } : {};
+  async findAll(userId?: string): Promise<Order[]> {
+    let where: any = {};
+    if (userId) {
+      // Find user by UUID, then use integer ID for query
+      const user = await this.userRepository.findOne({ where: { userId: userId } });
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+      where = { userId: user.id };
+    }
     return this.orderRepository.find({
       where,
       relations: ['user', 'items', 'items.product'],

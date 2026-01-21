@@ -10,6 +10,9 @@ import {
 import { Server, Socket } from 'socket.io';
 import { OrderService } from './order.service';
 import { OrderStatus } from './entities/order.entity';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { User } from '../Users/Entities/user.entity';
 
 @WebSocketGateway({
   cors: {
@@ -20,9 +23,13 @@ export class OrderGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;
 
-  private userSockets = new Map<number, string[]>(); // userId -> socketIds[]
+  private userSockets = new Map<string, string[]>(); // userId (UUID) -> socketIds[]
 
-  constructor(private orderService: OrderService) {}
+  constructor(
+    private orderService: OrderService,
+    @InjectRepository(User)
+    private userRepository: Repository<User>,
+  ) {}
 
   handleConnection(client: Socket) {
     console.log(`Client connected: ${client.id}`);
@@ -45,10 +52,10 @@ export class OrderGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   @SubscribeMessage('join-user-room')
   handleJoinUserRoom(
-    @MessageBody() data: { userId: number },
+    @MessageBody() data: { userId: string },
     @ConnectedSocket() client: Socket,
   ) {
-    const { userId } = data;
+    const { userId } = data; // UUID string
     
     if (!this.userSockets.has(userId)) {
       this.userSockets.set(userId, []);
@@ -84,22 +91,26 @@ export class OrderGateway implements OnGatewayConnection, OnGatewayDisconnect {
     try {
       const order = await this.orderService.findOne(orderId);
       
-      // Notify the specific user
-      this.server.to(`user-${order.userId}`).emit('order-update', {
-        orderId: order.id,
-        orderNumber: order.orderNumber,
-        status: order.status,
-        trackingNumber: order.trackingNumber,
-        estimatedDelivery: order.estimatedDelivery,
-        updatedAt: order.updatedAt,
-      });
+      // Find user by integer ID to get UUID
+      const user = await this.userRepository.findOne({ where: { id: order.userId } });
+      if (user && user.userId) {
+        // Notify the specific user using UUID
+        this.server.to(`user-${user.userId}`).emit('order-update', {
+          orderId: order.id,
+          orderNumber: order.orderNumber,
+          status: order.status,
+          trackingNumber: order.trackingNumber,
+          estimatedDelivery: order.estimatedDelivery,
+          updatedAt: order.updatedAt,
+        });
+      }
 
       // Notify admin dashboard
       this.server.to('admin-room').emit('admin-order-update', {
         orderId: order.id,
         orderNumber: order.orderNumber,
         status: order.status,
-        userId: order.userId,
+        userId: user?.userId || order.userId, // Send UUID if available
         total: order.total,
         updatedAt: order.updatedAt,
       });

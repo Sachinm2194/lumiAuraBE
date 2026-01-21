@@ -4,6 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ProductReview } from '../Entities/product-review.entity';
 import { Product } from '../Entities/product.entity';
+import { User } from '../../Users/Entities/user.entity';
 
 @Injectable()
 export class ProductReviewService {
@@ -12,11 +13,13 @@ export class ProductReviewService {
     private reviewRepo: Repository<ProductReview>,
     @InjectRepository(Product)
     private productRepo: Repository<Product>,
+    @InjectRepository(User)
+    private userRepo: Repository<User>,
   ) {}
 
   async create(
-    productId: number,
-    userId: number,
+    productId: string, // UUID
+    userId: string, // UUID
     rating: number,
     comment?: string,
     isVerifiedPurchase = false,
@@ -26,17 +29,23 @@ export class ProductReviewService {
       throw new BadRequestException('Rating must be between 1 and 5');
     }
 
-    // Check if product exists
+    // Find product by UUID
     const product = await this.productRepo.findOne({
-      where: { id: productId },
+      where: { productId: productId },
     });
     if (!product) {
       throw new NotFoundException('Product not found');
     }
 
+    // Find user by UUID
+    const user = await this.userRepo.findOne({ where: { userId: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
     const review = this.reviewRepo.create({
-      productId,
-      userId,
+      productId: product.id, // Use integer ID for FK
+      userId: user.id, // Use integer ID for FK
       rating,
       comment,
       isVerifiedPurchase,
@@ -45,21 +54,35 @@ export class ProductReviewService {
     const savedReview = await this.reviewRepo.save(review);
 
     // Update product average rating and review count
-    await this.updateProductRating(productId);
+    await this.updateProductRating(product.id); // Use integer ID
 
     return savedReview;
   }
 
-  async findByProduct(productId: number): Promise<ProductReview[]> {
+  async findByProduct(productId: string): Promise<ProductReview[]> {
+    // Find product by UUID
+    const product = await this.productRepo.findOne({
+      where: { productId: productId },
+    });
+    if (!product) {
+      throw new NotFoundException('Product not found');
+    }
+
     return this.reviewRepo.find({
-      where: { productId, isActive: true },
+      where: { productId: product.id, isActive: true },
       order: { createdAt: 'DESC' },
     });
   }
 
-  async findByUser(userId: number): Promise<ProductReview[]> {
+  async findByUser(userId: string): Promise<ProductReview[]> {
+    // Find user by UUID
+    const user = await this.userRepo.findOne({ where: { userId: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
     return this.reviewRepo.find({
-      where: { userId, isActive: true },
+      where: { userId: user.id, isActive: true },
       order: { createdAt: 'DESC' },
     });
   }
@@ -141,9 +164,17 @@ export class ProductReviewService {
     });
   }
 
-  async getProductRatingStats(productId: number) {
+  async getProductRatingStats(productId: string) {
+    // Find product by UUID
+    const product = await this.productRepo.findOne({
+      where: { productId: productId },
+    });
+    if (!product) {
+      throw new NotFoundException('Product not found');
+    }
+
     const reviews = await this.reviewRepo.find({
-      where: { productId, isActive: true },
+      where: { productId: product.id, isActive: true },
     });
 
     const ratingCounts = {

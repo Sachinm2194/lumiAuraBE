@@ -24,32 +24,34 @@ import {
     @Post()
     @UseGuards(JwtAuthGuard)
     create(
-      @Param('productId', ParseIntPipe) productId: number,
+      @Param('productId') productId: string, // UUID string
       @Request() req: any,
       @Body() body: CreateReviewDto,
     ) {
+      const userId = req.user.userId; // Get UUID from JWT
       return this.reviewService.create(
         productId,
-        req.user.id,
+        userId,
         body.rating,
         body.comment || undefined,
       );
     }
-  
+
     @Get()
-    findByProduct(@Param('productId', ParseIntPipe) productId: number) {
+    findByProduct(@Param('productId') productId: string) { // UUID string
       return this.reviewService.findByProduct(productId);
     }
-  
+
     @Get('stats')
-    getRatingStats(@Param('productId', ParseIntPipe) productId: number) {
+    getRatingStats(@Param('productId') productId: string) { // UUID string
       return this.reviewService.getProductRatingStats(productId);
     }
-  
+
     @Get('my-reviews')
     @UseGuards(JwtAuthGuard)
     findByUser(@Request() req: any) {
-      return this.reviewService.findByUser(req.user.id);
+      const userId = req.user.userId; // Get UUID from JWT
+      return this.reviewService.findByUser(userId);
     }
   
     @Patch(':id')
