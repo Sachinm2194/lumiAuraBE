@@ -7,8 +7,10 @@ import {
     Index,
     CreateDateColumn,
     JoinColumn,
+    BeforeInsert,
   } from 'typeorm';
   import { Product } from './product.entity';
+  import { v4 as uuidv4 } from 'uuid';
   
   @Entity('product_reviews')
   @Index(['productId'])
@@ -16,6 +18,9 @@ import {
   export class ProductReview {
     @PrimaryGeneratedColumn()
     id: number;
+
+    @Column({ type: 'uuid', unique: true, nullable: true })
+    reviewId?: string;
   
     // Foreign key (explicit)
     @Column()
@@ -48,5 +53,13 @@ import {
   
     @CreateDateColumn()
     createdAt: Date;
+
+    @BeforeInsert()
+    generateReviewId() {
+      // Generate unique UUID for reviewId if not provided
+      if (!this.reviewId) {
+        this.reviewId = uuidv4();
+      }
+    }
   }
   

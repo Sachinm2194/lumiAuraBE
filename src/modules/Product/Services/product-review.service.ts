@@ -5,6 +5,7 @@ import { Repository } from 'typeorm';
 import { ProductReview } from '../Entities/product-review.entity';
 import { Product } from '../Entities/product.entity';
 import { User } from '../../Users/Entities/user.entity';
+import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class ProductReviewService {
@@ -87,9 +88,10 @@ export class ProductReviewService {
     });
   }
 
-  async findOne(id: number): Promise<ProductReview> {
+  async findOne(reviewId: string): Promise<ProductReview> {
+    // Find by UUID
     const review = await this.reviewRepo.findOne({
-      where: { id },
+      where: { reviewId },
       relations: ['product'],
     });
 
@@ -97,15 +99,22 @@ export class ProductReviewService {
       throw new NotFoundException('Review not found');
     }
 
+    // Backfill reviewId if missing (for existing records)
+    if (!review.reviewId) {
+      review.reviewId = uuidv4();
+      await this.reviewRepo.save(review);
+    }
+
     return review;
   }
 
   async update(
-    id: number,
+    reviewId: string, // UUID
     rating?: number,
     comment?: string,
   ): Promise<ProductReview> {
-    const review = await this.findOne(id);
+    // Find by UUID
+    const review = await this.findOne(reviewId);
 
     if (rating !== undefined) {
       if (rating < 1 || rating > 5) {
@@ -126,8 +135,9 @@ export class ProductReviewService {
     return updatedReview;
   }
 
-  async remove(id: number): Promise<void> {
-    const review = await this.reviewRepo.findOne({ where: { id } });
+  async remove(reviewId: string): Promise<void> {
+    // Find by UUID
+    const review = await this.reviewRepo.findOne({ where: { reviewId } });
     if (!review) {
       throw new NotFoundException('Review not found');
     }

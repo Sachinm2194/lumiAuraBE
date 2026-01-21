@@ -14,6 +14,7 @@ import {
 } from 'typeorm';
 import { Product } from './product.entity';
 import slugify from 'slugify';
+import { v4 as uuidv4 } from 'uuid';
 
 @Entity('categories')
 @Index(['slug'], { unique: true })
@@ -21,6 +22,9 @@ import slugify from 'slugify';
 export class Category {
   @PrimaryGeneratedColumn()
   id: number;
+
+  @Column({ type: 'uuid', unique: true, nullable: true })
+  categoryId?: string;
 
   @Column({ length: 255 })
   name: string;
@@ -59,8 +63,12 @@ export class Category {
   updatedAt: Date;
 
   @BeforeInsert()
-  @BeforeUpdate()
-  generateSlug() {
+  generateCategoryIdAndSlug() {
+    // Generate unique UUID for categoryId if not provided
+    if (!this.categoryId) {
+      this.categoryId = uuidv4();
+    }
+
     // Auto-generate slug from category name if not provided by admin
     if (!this.slug) {
       this.slug = slugify(this.name, {
@@ -69,6 +77,25 @@ export class Category {
         trim: true,
       });
     } else {
+      // If admin manually provides slug (rare case), sanitize it to be URL-friendly
+      this.slug = slugify(this.slug, {
+        lower: true,
+        strict: true,
+        trim: true,
+      });
+    }
+  }
+
+  @BeforeUpdate()
+  updateSlugIfNeeded() {
+    // Auto-generate slug if missing (edge case - should not happen after creation)
+    if (!this.slug && this.name) {
+      this.slug = slugify(this.name, {
+        lower: true,
+        strict: true,
+        trim: true,
+      });
+    } else if (this.slug) {
       // If admin manually provides slug (rare case), sanitize it to be URL-friendly
       this.slug = slugify(this.slug, {
         lower: true,

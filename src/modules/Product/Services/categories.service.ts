@@ -5,6 +5,7 @@ import { Repository } from 'typeorm';
 import { Category } from '../Entities/category.entity';
 import { CreateCategoryDto } from '../DTO/create-category.dto';
 import { UpdateCategoryDto } from '../DTO/update-category.dto';
+import { v4 as uuidv4 } from 'uuid';
 
 
 @Injectable()
@@ -20,20 +21,30 @@ export class CategoriesService {
     return this.categoryRepo.find();
   }
 
-  async findOne(id: number) {
-    const category = await this.categoryRepo.findOne({ where: { id } });
+  async findOne(categoryId: string) {
+    // Find by UUID
+    const category = await this.categoryRepo.findOne({ where: { categoryId } });
     if (!category) throw new NotFoundException('Category not found');
+    
+    // Backfill categoryId if missing (for existing records)
+    if (!category.categoryId) {
+      category.categoryId = uuidv4();
+      await this.categoryRepo.save(category);
+    }
+    
     return category;
   }
 
-  async update(id: number, dto: UpdateCategoryDto) {
-    const category = await this.findOne(id);
+  async update(categoryId: string, dto: UpdateCategoryDto) {
+    // Find by UUID
+    const category = await this.findOne(categoryId);
     Object.assign(category, dto);
     return this.categoryRepo.save(category);
   }
 
-  async remove(id: number) {
-    const category = await this.findOne(id);
+  async remove(categoryId: string) {
+    // Find by UUID
+    const category = await this.findOne(categoryId);
     return this.categoryRepo.remove(category);
   }
 }

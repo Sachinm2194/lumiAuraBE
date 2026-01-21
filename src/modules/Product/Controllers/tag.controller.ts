@@ -6,7 +6,6 @@ import {
     Delete,
     Param,
     Body,
-    ParseIntPipe,
     BadRequestException,
   } from '@nestjs/common';
   import { TagService } from '../Services/tag.service';
@@ -28,13 +27,13 @@ import {
       return this.tagService.findAll();
     }
   
-    @Get(':id')
-    findOne(@Param('id', ParseIntPipe) id: number) {
-      return this.tagService.findOne(id);
+    @Get(':tagId')
+    findOne(@Param('tagId') tagId: string) {
+      return this.tagService.findOne(tagId);
     }
   
-    @Delete(':id')
-    remove(@Param('id', ParseIntPipe) id: number) {
-      return this.tagService.remove(id);
+    @Delete(':tagId')
+    remove(@Param('tagId') tagId: string) {
+      return this.tagService.remove(tagId);
     }
   }

@@ -54,20 +54,20 @@ import {
       return this.reviewService.findByUser(userId);
     }
   
-    @Patch(':id')
+    @Patch(':reviewId')
     @UseGuards(JwtAuthGuard)
     update(
-      @Param('id', ParseIntPipe) id: number,
+      @Param('reviewId') reviewId: string, // UUID string
       @Request() req: any,
       @Body() body: UpdateReviewDto,
     ) {
       // Optional: Add check to ensure user owns the review
-      return this.reviewService.update(id, body.rating, body.comment);
+      return this.reviewService.update(reviewId, body.rating, body.comment);
     }
   
-    @Delete(':id')
+    @Delete(':reviewId')
     @UseGuards(JwtAuthGuard)
-    remove(@Param('id', ParseIntPipe) id: number) {
-      return this.reviewService.remove(id);
+    remove(@Param('reviewId') reviewId: string) { // UUID string
+      return this.reviewService.remove(reviewId);
     }
   } 

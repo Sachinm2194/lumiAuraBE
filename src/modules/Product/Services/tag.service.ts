@@ -3,6 +3,7 @@ import { Injectable, NotFoundException, ConflictException } from '@nestjs/common
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Tag } from '../Entities/tag.entity';
+import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class TagService {
@@ -32,11 +33,19 @@ export class TagService {
     });
   }
 
-  async findOne(id: number): Promise<Tag> {
-    const tag = await this.tagRepo.findOne({ where: { id } });
+  async findOne(tagId: string): Promise<Tag> {
+    // Find by UUID
+    const tag = await this.tagRepo.findOne({ where: { tagId } });
     if (!tag) {
       throw new NotFoundException('Tag not found');
     }
+    
+    // Backfill tagId if missing (for existing records)
+    if (!tag.tagId) {
+      tag.tagId = uuidv4();
+      await this.tagRepo.save(tag);
+    }
+    
     return tag;
   }
 
@@ -46,8 +55,9 @@ export class TagService {
     });
   }
 
-  async remove(id: number): Promise<void> {
-    const tag = await this.findOne(id);
+  async remove(tagId: string): Promise<void> {
+    // Find by UUID
+    const tag = await this.findOne(tagId);
     await this.tagRepo.remove(tag);
   }
 }
