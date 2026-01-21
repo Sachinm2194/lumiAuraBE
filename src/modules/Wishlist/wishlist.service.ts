@@ -22,11 +22,11 @@ export class WishlistService {
 
   /** ➕ Add product to wishlist */
   async addToWishlist(
-    userId: number,
+    userId: string,
     productId: number,
     notes?: string,
   ): Promise<WishlistItem[]> {
-    const user = await this.userRepo.findOne({ where: { id: userId } });
+    const user = await this.userRepo.findOne({ where: { userId: userId } });
     if (!user) throw new NotFoundException('User not found');
 
     const product = await this.productRepo.findOne({
@@ -38,7 +38,7 @@ export class WishlistService {
     // Check if product already in wishlist
     const existingItem = await this.wishlistItemRepo.findOne({
       where: {
-        user: { id: userId },
+        userId: user.id,
         product: { id: productId },
       },
     });
@@ -49,6 +49,7 @@ export class WishlistService {
 
     const wishlistItem = this.wishlistItemRepo.create({
       user,
+      userId: user.id,
       product,
       notes,
     });
@@ -60,12 +61,15 @@ export class WishlistService {
 
   /** 🗑 Remove product from wishlist */
   async removeFromWishlist(
-    userId: number,
+    userId: string,
     productId: number,
   ): Promise<{ message: string }> {
+    const user = await this.userRepo.findOne({ where: { userId: userId } });
+    if (!user) throw new NotFoundException('User not found');
+
     const wishlistItem = await this.wishlistItemRepo.findOne({
       where: {
-        user: { id: userId },
+        userId: user.id,
         product: { id: productId },
       },
     });
@@ -80,34 +84,37 @@ export class WishlistService {
   }
 
   /** 📦 Get user wishlist */
-  async getWishlist(userId: number): Promise<WishlistItem[]> {
-    const user = await this.userRepo.findOne({ where: { id: userId } });
+  async getWishlist(userId: string): Promise<WishlistItem[]> {
+    const user = await this.userRepo.findOne({ where: { userId: userId } });
     if (!user) throw new NotFoundException('User not found');
 
     return this.wishlistItemRepo.find({
-      where: { user: { id: userId } },
+      where: { userId: user.id },
       relations: ['product', 'product.variants', 'product.images'],
       order: { createdAt: 'DESC' },
     });
   }
 
   /** ❌ Clear wishlist */
-  async clearWishlist(userId: number): Promise<{ message: string }> {
-    const user = await this.userRepo.findOne({ where: { id: userId } });
+  async clearWishlist(userId: string): Promise<{ message: string }> {
+    const user = await this.userRepo.findOne({ where: { userId: userId } });
     if (!user) throw new NotFoundException('User not found');
 
-    await this.wishlistItemRepo.delete({ user: { id: userId } });
+    await this.wishlistItemRepo.delete({ userId: user.id });
     return { message: 'Wishlist cleared' };
   }
 
   /** ✅ Check if product is in wishlist */
   async isInWishlist(
-    userId: number,
+    userId: string,
     productId: number,
   ): Promise<{ isInWishlist: boolean }> {
+    const user = await this.userRepo.findOne({ where: { userId: userId } });
+    if (!user) throw new NotFoundException('User not found');
+
     const item = await this.wishlistItemRepo.findOne({
       where: {
-        user: { id: userId },
+        userId: user.id,
         product: { id: productId },
       },
     });

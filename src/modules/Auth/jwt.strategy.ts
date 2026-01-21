@@ -32,10 +32,16 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: any) {
-    const user = await this.usersService.findUserById(payload.sub);
+    const user = await this.usersService.findUserByUserId(payload.sub);
     if (!user || !user.isActive) {
       throw new UnauthorizedException('User not found or inactive');
     }
-    return { id: payload.sub, email: payload.email, role: payload.role };
+    // Ensure userId exists (should not happen, but safety check)
+    if (!user.userId) {
+      const { v4: uuidv4 } = await import('uuid');
+      user.userId = uuidv4();
+      await this.usersService.updateUser(user.id, { userId: user.userId } as any);
+    }
+    return { id: user.id, userId: user.userId, email: payload.email, role: payload.role };
   }
 }

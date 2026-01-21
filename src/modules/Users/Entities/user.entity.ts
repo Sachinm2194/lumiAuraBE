@@ -10,12 +10,17 @@ import {
   UpdateDateColumn,
   OneToOne,
   OneToMany,
+  BeforeInsert,
 } from 'typeorm';
+import { v4 as uuidv4 } from 'uuid';
 
 @Entity('users')
 export class User {
   @PrimaryGeneratedColumn()
   id: number;
+
+  @Column({ type: 'uuid', unique: true, nullable: true })
+  userId?: string;
 
   @Column({ unique: true })
   email: string;
@@ -72,4 +77,11 @@ export class User {
   // 👇 One-to-Many relation with wishlist items
   @OneToMany(() => WishlistItem, wishlistItem => wishlistItem.user)
   wishlistItems: WishlistItem[];
+
+  @BeforeInsert()
+  generateUserId() {
+    if (!this.userId) {
+      this.userId = uuidv4();
+    }
+  }
 }

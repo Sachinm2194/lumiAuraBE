@@ -22,15 +22,16 @@ import { Product } from '../Product/Entities/product.entity';
     ) {}
   
     /** 🛒 Get or create cart for a user */
-    async getOrCreateCart(userId: number): Promise<Cart> {
+    async getOrCreateCart(userId: string): Promise<Cart> {
+      const user = await this.userRepo.findOne({ where: { userId: userId } });
+      if (!user) throw new NotFoundException('User not found');
+
       let cart = await this.cartRepo.findOne({
-        where: { user: { id: userId } },
+        where: { user: { id: user.id } },
         relations: ['items', 'items.product'],
       });
-  
+
       if (!cart) {
-        const user = await this.userRepo.findOne({ where: { id: userId } });
-        if (!user) throw new NotFoundException('User not found');
   
         cart = this.cartRepo.create({ user, items: [] });
         await this.cartRepo.save(cart);
@@ -40,7 +41,7 @@ import { Product } from '../Product/Entities/product.entity';
     }
   
     /** ➕ Add product to cart */
-    async addToCart(userId: number, productId: number, quantity: number) {
+    async addToCart(userId: string, productId: number, quantity: number) {
       const cart = await this.getOrCreateCart(userId);
   
       const product = await this.productRepo.findOne({ where: { id: productId }, relations: ['variants'] });
@@ -68,7 +69,7 @@ import { Product } from '../Product/Entities/product.entity';
     }
   
     /** 🗑 Remove product from cart */
-    async removeFromCart(userId: number, productId: number) {
+    async removeFromCart(userId: string, productId: number) {
       const cart = await this.getOrCreateCart(userId);
   
       const cartItem = cart.items.find((item) => item.product.id === productId);
@@ -79,12 +80,12 @@ import { Product } from '../Product/Entities/product.entity';
     }
   
     /** 📦 Get user cart */
-    async getCart(userId: number) {
+    async getCart(userId: string) {
       return this.getOrCreateCart(userId);
     }
-  
+
     /** ❌ Clear cart */
-    async clearCart(userId: number) {
+    async clearCart(userId: string) {
       const cart = await this.getOrCreateCart(userId);
       await this.cartItemRepo.remove(cart.items);
       cart.items = [];

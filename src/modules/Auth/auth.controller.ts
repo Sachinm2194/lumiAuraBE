@@ -48,6 +48,7 @@ export class AuthController {
     return res.json({
       message: 'User login successfully',
       id: result.user.id,
+      userId: result.user.userId,
       email: result.user.email,
       role: result.user.role,
     });
@@ -61,6 +62,7 @@ export class AuthController {
       authenticated: true,  
       user: {
         id: req.user.id,
+        userId: req.user.userId,
         email: req.user.email,
         role: req.user.role,
       },

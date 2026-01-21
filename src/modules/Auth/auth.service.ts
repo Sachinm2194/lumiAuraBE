@@ -200,9 +200,15 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password');
     }
 
+    // Generate userId if it doesn't exist (for existing users)
+    if (!user.userId) {
+      user.userId = uuidv4();
+      await this.usersService.updateUser(user.id, { userId: user.userId } as any);
+    }
+
     // Create JWT payload
     const payload = {
-      sub: user.id,
+      sub: user.userId,
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
@@ -500,9 +506,15 @@ async refreshToken(refreshToken: string) {
     throw new UnauthorizedException('User account is inactive');
   }
 
+  // Generate userId if it doesn't exist (for existing users)
+  if (!user.userId) {
+    user.userId = uuidv4();
+    await this.usersService.updateUser(user.id, { userId: user.userId } as any);
+  }
+
   // Generate new access token
   const payload = {
-    sub: user.id,
+    sub: user.userId,
     email: user.email,
     firstName: user.firstName,
     lastName: user.lastName,
