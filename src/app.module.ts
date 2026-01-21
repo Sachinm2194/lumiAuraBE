@@ -10,6 +10,7 @@ import { OrderModule } from './modules/Order/order.module';
 import { PaymentModule } from './modules/Payment/payment.module';
 import { InventoryModule } from './modules/Inventory/inventory.module';
 import { NotificationModule } from './modules/Notification/notification.module';
+import { WishlistModule } from './modules/Wishlist/wishlist.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -39,6 +40,7 @@ import { AppService } from './app.service';
     PaymentModule,
     InventoryModule,
     NotificationModule,
+    WishlistModule,
   ],
   controllers: [AppController], // Root controller registered here
   providers: [AppService],
