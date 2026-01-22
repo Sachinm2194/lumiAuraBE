@@ -148,7 +148,7 @@ export class ProductService {
       await this.productTagRepo.save(productTags);
     }
     // 6. Return product with relations
-    return this.findOneById(savedProduct.id);
+    return this.findOneById(savedProduct.productId);
   }
 
   async findAll(options?: {
@@ -178,16 +178,63 @@ export class ProductService {
     });
   }
 
-  async findOneById(id: number, includeReviews = false): Promise<Product> {
+  /**
+   * Helper method to check if identifier is UUID format
+   */
+  private isUUID(identifier: string): boolean {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(identifier);
+  }
+
+  /**
+   * Resolve identifier (UUID or slug) to productId (UUID)
+   * Used internally for update/delete operations
+   */
+  private async resolveToProductId(identifier: string): Promise<string> {
+    if (this.isUUID(identifier)) {
+      // Already a UUID, verify it exists
+      const product = await this.productRepo.findOne({
+        where: { productId: identifier },
+        select: ['productId'],
+      });
+      if (!product) {
+        throw new NotFoundException('Product not found');
+      }
+      return identifier;
+    } else {
+      // It's a slug, find product and return productId
+      const product = await this.productRepo.findOne({
+        where: { slug: identifier },
+        select: ['productId'],
+      });
+      if (!product) {
+        throw new NotFoundException('Product not found');
+      }
+      return product.productId;
+    }
+  }
+
+  /**
+   * Find product by identifier (UUID or slug) - Smart routing
+   */
+  async findOne(identifier: string, includeReviews = false): Promise<Product> {
     const relations = ['category', 'variants', 'images', 'tags', 'tags.tag'];
     if (includeReviews) {
       relations.push('reviews');
     }
 
-    const product = await this.productRepo.findOne({
-      where: { id },
-      relations,
-    });
+    let product: Product | null;
+    if (this.isUUID(identifier)) {
+      product = await this.productRepo.findOne({
+        where: { productId: identifier },
+        relations,
+      });
+    } else {
+      product = await this.productRepo.findOne({
+        where: { slug: identifier },
+        relations,
+      });
+    }
 
     if (!product) {
       throw new NotFoundException('Product not found');
@@ -196,14 +243,8 @@ export class ProductService {
     return product;
   }
 
-  async findOneByGuid(productId: string, includeReviews = false): Promise<Product> {
-    const relations = [
-      'category',
-      'variants',
-      'images',
-      'tags',
-      'tags.tag',
-    ];
+  async findOneById(productId: string, includeReviews = false): Promise<Product> {
+    const relations = ['category', 'variants', 'images', 'tags', 'tags.tag'];
     if (includeReviews) {
       relations.push('reviews');
     }
@@ -244,11 +285,16 @@ export class ProductService {
     return product;
   }
 
+  /**
+   * Update product by identifier (UUID or slug) - Smart routing
+   */
   async update(
-    id: number,
+    identifier: string,
     dto: UpdateProductDto & { images?: string[] },
   ): Promise<Product> {
-    const product = await this.findOneById(id);
+    // Resolve identifier to productId (UUID)
+    const productId = await this.resolveToProductId(identifier);
+    const product = await this.findOneById(productId);
 
     // Update category if provided
     if (dto.categoryId) {
@@ -281,8 +327,8 @@ export class ProductService {
 
     // Update variants if provided
     if (dto.variants) {
-      // Delete existing variants
-      await this.productVariantRepo.delete({ productId: id });
+      // Delete existing variants - use integer id for FK
+      await this.productVariantRepo.delete({ productId: product.id });
       // Create new variants
       const variants = await Promise.all(
         dto.variants.map(async (variantDto, index) => {
@@ -297,7 +343,7 @@ export class ProductService {
           return this.productVariantRepo.create({
             ...variantDto,
             sku,
-            productId: id,
+            productId: product.id,
             isDefault: index === 0 || variantDto.isDefault,
           });
         }),
@@ -307,12 +353,12 @@ export class ProductService {
 
     // Update images if provided
     if (dto.images) {
-      // Delete existing images
-      await this.productImageRepo.delete({ productId: id });
+      // Delete existing images - use integer id for FK
+      await this.productImageRepo.delete({ productId: product.id });
       // Create new images
       const images = dto.images.map((imageUrl, index) =>
         this.productImageRepo.create({
-          productId: id,
+          productId: product.id,
           imageUrl,
           altText: `${product.name} - Image ${index + 1}`,
           isPrimary: index === 0,
@@ -324,8 +370,8 @@ export class ProductService {
 
     // Update tags if provided
     if (dto.tagIds !== undefined) {
-      // Delete existing product tags
-      await this.productTagRepo.delete({ productId: id });
+      // Delete existing product tags - use integer id for FK
+      await this.productTagRepo.delete({ productId: product.id });
       // Create new product tags
       if (dto.tagIds.length > 0) {
         const tags = await this.tagRepo.find({
@@ -333,7 +379,7 @@ export class ProductService {
         });
         const productTags = tags.map((tag) =>
           this.productTagRepo.create({
-            productId: id,
+            productId: product.id,
             tagId: tag.id,
           }),
         );
@@ -341,22 +387,27 @@ export class ProductService {
       }
     }
 
-    return this.findOneById(id);
+    return this.findOneById(product.productId);
   }
 
-  async remove(id: number): Promise<void> {
-    const product = await this.findOneById(id);
+  /**
+   * Remove product by identifier (UUID or slug) - Smart routing
+   */
+  async remove(identifier: string): Promise<void> {
+    // Resolve identifier to productId (UUID)
+    const productId = await this.resolveToProductId(identifier);
+    const product = await this.findOneById(productId);
     await this.productRepo.remove(product);
   }
 
-  async removeMultiple(ids: number[]): Promise<void> {
+  async removeMultiple(productIds: string[]): Promise<void> {
     const products = await this.productRepo.find({
-      where: ids.map((id) => ({ id })),
+      where: productIds.map((productId) => ({ productId })),
     });
 
     if (products.length === 0) {
       throw new NotFoundException(
-        'No products found with the provided IDs',
+        'No products found with the provided productIds',
       );
     }
 
