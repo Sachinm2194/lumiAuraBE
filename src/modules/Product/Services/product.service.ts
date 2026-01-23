@@ -72,6 +72,53 @@ export class ProductService {
     return sku;
   }
 
+  /**
+   * Sort variants by variantName using natural sort (numeric first, then unit)
+   * Examples: 20gm, 30ml, 50ml, 100ml
+   */
+  private sortVariantsByVariantName(variants: ProductVariant[]): ProductVariant[] {
+    if (!variants || variants.length === 0) return variants;
+
+    return [...variants].sort((a, b) => {
+      const nameA = a.variantName || '';
+      const nameB = b.variantName || '';
+
+      // Extract numeric value from variant name (e.g., "30ml" -> 30, "50gm" -> 50)
+      const extractNumber = (str: string): number => {
+        const match = str.match(/(\d+)/);
+        return match ? parseInt(match[1], 10) : 0;
+      };
+
+      const numA = extractNumber(nameA);
+      const numB = extractNumber(nameB);
+
+      // If both have numbers, sort by number
+      if (numA !== numB) {
+        return numA - numB;
+      }
+
+      // If numbers are equal, sort alphabetically by unit (ml, gm, etc.)
+      return nameA.localeCompare(nameB);
+    });
+  }
+
+  /**
+   * Sort variants in product and return sorted product
+   */
+  private sortProductVariants(product: Product): Product {
+    if (product && product.variants) {
+      product.variants = this.sortVariantsByVariantName(product.variants);
+    }
+    return product;
+  }
+
+  /**
+   * Sort variants in products array
+   */
+  private sortProductsVariants(products: Product[]): Product[] {
+    return products.map(product => this.sortProductVariants(product));
+  }
+
   async create(dto: CreateProductDto & { images?: string[] }) {
     const category = await this.categoryRepo.findOne({
       where: { id: dto.categoryId },
@@ -169,13 +216,16 @@ export class ProductService {
       relations.push('reviews');
     }
 
-    return this.productRepo.find({
+    const products = await this.productRepo.find({
       where,
       relations,
       order: {
         createdAt: 'DESC',
       },
     });
+
+    // Sort variants in all products
+    return this.sortProductsVariants(products);
   }
 
   /**
@@ -240,7 +290,8 @@ export class ProductService {
       throw new NotFoundException('Product not found');
     }
 
-    return product;
+    // Sort variants before returning
+    return this.sortProductVariants(product);
   }
 
   async findOneById(productId: string, includeReviews = false): Promise<Product> {
@@ -258,7 +309,8 @@ export class ProductService {
       throw new NotFoundException('Product not found');
     }
 
-    return product;
+    // Sort variants before returning
+    return this.sortProductVariants(product);
   }
 
   async findBySlug(slug: string, includeReviews = false): Promise<Product> {
@@ -282,7 +334,8 @@ export class ProductService {
       throw new NotFoundException('Product not found');
     }
 
-    return product;
+    // Sort variants before returning
+    return this.sortProductVariants(product);
   }
 
   /**

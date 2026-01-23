@@ -18,9 +18,24 @@ export class CategoriesController {
     return this.categoriesService.findAll();
   }
 
-  @Get(':categoryId')
-  findOne(@Param('categoryId') categoryId: string) {
-    return this.categoriesService.findOne(categoryId);
+  /**
+   * Explicit endpoint for slug-based lookup (alternative to smart routing)
+   * GET /categories/slug/face-care
+   */
+  @Get('slug/:slug')
+  findBySlug(@Param('slug') slug: string) {
+    return this.categoriesService.findBySlug(slug);
+  }
+
+  /**
+   * Get category by identifier (UUID or slug) - Smart routing
+   * Examples:
+   * - GET /categories/881aed84-e14c-4c5d-9300-91874ba81847 (UUID)
+   * - GET /categories/face-care (slug)
+   */
+  @Get(':identifier')
+  findOne(@Param('identifier') identifier: string) {
+    return this.categoriesService.findOne(identifier);
   }
 
   @Patch(':categoryId')
