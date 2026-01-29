@@ -8,6 +8,7 @@ import {
     Body,
     Req,
     UseGuards,
+    Query,
   } from '@nestjs/common';
   import { CartService } from './cart.service';
   import { AddToCartDto } from './DTO';
@@ -37,9 +38,9 @@ import {
   
     /** 📦 Get user cart */
     @Get()
-    getCart(@Req() req) {
+    getCart(@Req() req, @Query('search') search?: string) {
       const userId = req.user.userId;
-      return this.cartService.getCart(userId);
+      return this.cartService.getCart(userId, search);
     }
   
     /** ❌ Clear cart */

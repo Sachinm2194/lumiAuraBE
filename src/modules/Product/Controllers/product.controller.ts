@@ -45,9 +45,11 @@ export class ProductController {
   }
 
   @Get()
-  findAll(@Query('includeReviews') includeReviews?: string) {
+  findAll(@Query('includeReviews') includeReviews?: string, @Query('search') search?: string,) {
     return this.productsService.findAll({
       includeReviews: includeReviews === 'true',
+      search: search || undefined,
+
     });
   }
 

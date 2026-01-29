@@ -5,7 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { In, Like, Repository } from 'typeorm';
 import { Product } from '../Entities/product.entity';
 import { Category } from '../Entities/category.entity';
 import { CreateProductDto } from '../DTO/create-product.dto';
@@ -198,33 +198,64 @@ export class ProductService {
     return this.findOneById(savedProduct.productId);
   }
 
+  
   async findAll(options?: {
+    search?: string;
     status?: 'draft' | 'active' | 'archived';
     categoryId?: number;
     isFeatured?: boolean;
-    includeReviews?: boolean; // Add this optional parameter
-
+    includeReviews?: boolean;
   }) {
-    const where: any = {};
-    if (options?.status) where.status = options.status;
-    if (options?.categoryId) where.categoryId = options.categoryId;
-    if (options?.isFeatured !== undefined)
-      where.isFeatured = options.isFeatured;
+    const query = this.productRepo
+      .createQueryBuilder('product')
+      .leftJoinAndSelect('product.category', 'category')
+      .leftJoinAndSelect('product.variants', 'variants')
+      .leftJoinAndSelect('product.images', 'images')
+      .leftJoinAndSelect('product.tags', 'productTags')
+      .leftJoinAndSelect('productTags.tag', 'tag');
 
-    const relations: string[] = ['category', 'variants', 'images', 'tags', 'tags.tag'];
     if (options?.includeReviews) {
-      relations.push('reviews');
+      query.leftJoinAndSelect('product.reviews', 'reviews');
     }
 
-    const products = await this.productRepo.find({
-      where,
-      relations,
-      order: {
-        createdAt: 'DESC',
-      },
-    });
+    // Filters
+    if (options?.status) {
+      query.andWhere('product.status = :status', {
+        status: options.status,
+      });
+    }
 
-    // Sort variants in all products
+    if (options?.categoryId) {
+      query.andWhere('product.categoryId = :categoryId', {
+        categoryId: options.categoryId,
+      });
+    }
+
+    if (options?.isFeatured !== undefined) {
+      query.andWhere('product.isFeatured = :isFeatured', {
+        isFeatured: options.isFeatured,
+      });
+    }
+
+    // 🔍 SEARCH
+    if (options?.search && options.search.trim().length > 0) {
+      query.andWhere(
+        `
+        product.name ILIKE :search
+        OR product.description ILIKE :search
+        OR category.name ILIKE :search
+        OR tag.name ILIKE :search
+        `,
+        {
+          search: `%${options.search}%`,
+        },
+      );
+    }
+
+    query.orderBy('product.createdAt', 'DESC');
+
+    const products = await query.getMany();
+
     return this.sortProductsVariants(products);
   }
 

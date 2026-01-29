@@ -28,16 +28,62 @@ import { Product } from '../Product/Entities/product.entity';
 
       let cart = await this.cartRepo.findOne({
         where: { user: { id: user.id } },
-        relations: ['items', 'items.product'],
+        relations: ['items', 'items.product', 'items.product.variants', 'items.product.images'],
       });
 
       if (!cart) {
-  
         cart = this.cartRepo.create({ user, items: [] });
         await this.cartRepo.save(cart);
       }
-  
+
       return cart;
+    }
+
+    /** 📦 Get user cart with optional search */
+    async getCartWithSearch(userId: string, search?: string): Promise<Cart> {
+      const user = await this.userRepo.findOne({ where: { userId: userId } });
+      if (!user) throw new NotFoundException('User not found');
+
+      // First, get or create the cart without search filtering
+      let cart = await this.cartRepo.findOne({
+        where: { user: { id: user.id } },
+        relations: ['items', 'items.product', 'items.product.variants', 'items.product.images'],
+      });
+
+      if (!cart) {
+        // Create cart if it doesn't exist
+        cart = this.cartRepo.create({ user, items: [] });
+        await this.cartRepo.save(cart);
+        // Return the cart with empty items since no search can match
+        return { ...cart, items: [] };
+      }
+
+      // If no search term, return the full cart
+      if (!search || !search.trim()) {
+        return cart;
+      }
+
+      // Apply search filtering to items
+      const query = this.cartRepo
+        .createQueryBuilder('cart')
+        .leftJoinAndSelect('cart.items', 'items')
+        .leftJoinAndSelect('items.product', 'product')
+        .leftJoinAndSelect('product.variants', 'variants')
+        .leftJoinAndSelect('product.images', 'images')
+        .where('cart.user = :userId', { userId: user.id })
+        .andWhere(
+          '(LOWER(product.name) LIKE LOWER(:search) OR LOWER(product.description) LIKE LOWER(:search))',
+          { search: `%${search.trim()}%` }
+        );
+
+      const cartWithFilteredItems = await query.getOne();
+
+      // If search filtering resulted in no items, return cart with empty items array
+      if (!cartWithFilteredItems) {
+        return { ...cart, items: [] };
+      }
+
+      return cartWithFilteredItems;
     }
   
     /** ➕ Add product to cart */
@@ -85,7 +131,10 @@ import { Product } from '../Product/Entities/product.entity';
     }
   
     /** 📦 Get user cart */
-    async getCart(userId: string) {
+    async getCart(userId: string, search?: string) {
+      if (search && search.trim()) {
+        return this.getCartWithSearch(userId, search);
+      }
       return this.getOrCreateCart(userId);
     }
 

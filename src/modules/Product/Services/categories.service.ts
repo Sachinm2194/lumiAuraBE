@@ -17,8 +17,22 @@ export class CategoriesService {
     return this.categoryRepo.save(category);
   }
 
-  findAll() {
-    return this.categoryRepo.find();
+  findAll(search?: string) {
+    const query = this.categoryRepo.createQueryBuilder('category')
+      .leftJoinAndSelect('category.products', 'products')
+      .leftJoinAndSelect('category.children', 'children')
+      .leftJoinAndSelect('category.parent', 'parent');
+
+    if (search && search.trim()) {
+      query.where(
+        '(LOWER(category.name) LIKE LOWER(:search) OR LOWER(category.description) LIKE LOWER(:search))',
+        { search: `%${search.trim()}%` }
+      );
+    }
+
+    query.orderBy('category.name', 'ASC');
+
+    return query.getMany();
   }
 
   /**

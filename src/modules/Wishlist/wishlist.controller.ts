@@ -7,11 +7,11 @@ import {
   Body,
   Req,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 import { WishlistService } from './wishlist.service';
 import {
   AddToWishlistDto,
-  RemoveFromWishlistDto,
 } from './DTO';
 import { JwtAuthGuard } from '../Auth/guards/jwt-auth.guard';
 
@@ -43,9 +43,10 @@ export class WishlistController {
 
   /** 📦 Get user wishlist */
   @Get()
-  getWishlist(@Req() req) {
+  getWishlist(@Req() req , @Query('search') search:string) {
     const userId = req.user.userId;
-    return this.wishlistService.getWishlist(userId);
+    return this.wishlistService.getWishlist(userId, search,
+    );
   }
 
   /** ❌ Clear wishlist */

@@ -91,15 +91,27 @@ export class WishlistService {
   }
 
   /** 📦 Get user wishlist */
-  async getWishlist(userId: string): Promise<WishlistItem[]> {
+  async getWishlist(userId: string, search?: string): Promise<WishlistItem[]> {
     const user = await this.userRepo.findOne({ where: { userId: userId } });
     if (!user) throw new NotFoundException('User not found');
 
-    return this.wishlistItemRepo.find({
-      where: { userId: user.id },
-      relations: ['product', 'product.variants', 'product.images'],
-      order: { createdAt: 'DESC' },
-    });
+    const query = this.wishlistItemRepo
+      .createQueryBuilder('wishlistItem')
+      .leftJoinAndSelect('wishlistItem.product', 'product')
+      .leftJoinAndSelect('product.variants', 'variants')
+      .leftJoinAndSelect('product.images', 'images')
+      .where('wishlistItem.userId = :userId', { userId: user.id });
+
+    if (search && search.trim()) {
+      query.andWhere(
+        '(LOWER(product.name) LIKE LOWER(:search) OR LOWER(product.description) LIKE LOWER(:search) OR LOWER(wishlistItem.notes) LIKE LOWER(:search))',
+        { search: `%${search.trim()}%` }
+      );
+    }
+
+    query.orderBy('wishlistItem.createdAt', 'DESC');
+
+    return query.getMany();
   }
 
   /** ❌ Clear wishlist */
