@@ -10,6 +10,7 @@ import { Cart } from './Entities/cart.entity';
 import { CartItem } from './Entities/cart-item.entity';
 import { User } from '../Users/Entities/user.entity';
 import { Product } from '../Product/Entities/product.entity';
+import { ProductVariant } from '../Product/Entities/product-variant.entity';
 
   
   @Injectable()
@@ -19,6 +20,7 @@ import { Product } from '../Product/Entities/product.entity';
       @InjectRepository(CartItem) private cartItemRepo: Repository<CartItem>,
       @InjectRepository(User) private userRepo: Repository<User>,
       @InjectRepository(Product) private productRepo: Repository<Product>,
+      @InjectRepository(ProductVariant) private variantRepo: Repository<ProductVariant>,
     ) {}
   
     /** 🛒 Get or create cart for a user */
@@ -87,27 +89,49 @@ import { Product } from '../Product/Entities/product.entity';
     }
   
     /** ➕ Add product to cart */
-    async addToCart(userId: string, productId: string, quantity: number) { // productId is UUID
+    async addToCart(userId: string, productId: string, quantity: number, variantId?: number) {
       const cart = await this.getOrCreateCart(userId);
   
       // Find product by UUID
-      const product = await this.productRepo.findOne({ where: { productId: productId }, relations: ['variants'] });
+      const product = await this.productRepo.findOne({ 
+        where: { productId: productId }, 
+        relations: ['variants'] 
+      });
       if (!product) throw new NotFoundException('Product not found');
 
-      const variant = product.variants?.find(v => v.isDefault) || product.variants?.[0];
-      if (!variant) throw new BadRequestException('Product has no variants');
+      // Determine which variant to use
+      let variant: ProductVariant;
+      
+      if (variantId) {
+        // Use specified variant
+        variant = await this.variantRepo.findOne({ where: { id: variantId, productId: product.id } });
+        if (!variant) throw new NotFoundException('Variant not found for this product');
+      } else {
+        // Use default variant or first available
+        variant = product.variants?.find(v => v.isDefault) || product.variants?.[0];
+        if (!variant) throw new BadRequestException('Product has no variants');
+      }
     
       // Check stock from variant
       if (variant.quantity < quantity) {
         throw new BadRequestException('Not enough stock available');
       }
   
-      let cartItem = cart.items.find((item) => item.product.id === product.id);
+      // Check if item with same product and variant already exists
+      let cartItem = cart.items.find((item) => 
+        item.product.id === product.id && 
+        (!item.variant || !variantId || item.variant.id === variantId)
+      );
   
       if (cartItem) {
         cartItem.quantity += quantity;
       } else {
-        cartItem = this.cartItemRepo.create({ cart, product, quantity });
+        cartItem = this.cartItemRepo.create({ 
+          cart, 
+          product, 
+          quantity,
+          variant: variantId ? variant : undefined
+        });
         cart.items.push(cartItem);
       }
   

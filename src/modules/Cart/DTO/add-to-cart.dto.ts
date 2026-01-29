@@ -1,4 +1,4 @@
-import { IsUUID, IsNotEmpty, IsNumber, Min } from 'class-validator';
+import { IsUUID, IsNotEmpty, IsNumber, Min, IsOptional } from 'class-validator';
 
 export class AddToCartDto {
   @IsUUID()
@@ -9,4 +9,8 @@ export class AddToCartDto {
   @IsNotEmpty()
   @Min(1, { message: 'Quantity must be at least 1' })
   quantity: number;
+
+  @IsNumber()
+  @IsOptional()
+  variantId?: number; // Optional - if not provided, uses default variant
 }

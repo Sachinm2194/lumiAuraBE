@@ -7,6 +7,8 @@ import {
   } from 'typeorm';
   import { Cart } from './cart.entity';
   import { Product } from 'src/modules/Product/Entities/product.entity';
+  import { ProductVariant } from 'src/modules/Product/Entities/product-variant.entity';
+  
   @Entity('cart_items')
   export class CartItem {
     @PrimaryGeneratedColumn()
@@ -22,5 +24,9 @@ import {
     // ✅ many cart items belong to one product
     @ManyToOne(() => Product, { eager: true, onDelete: 'CASCADE' })
     product: Product;
+
+    // ✅ many cart items belong to one variant (optional - if not specified, uses default)
+    @ManyToOne(() => ProductVariant, { eager: true, nullable: true, onDelete: 'CASCADE' })
+    variant?: ProductVariant;
   }
   

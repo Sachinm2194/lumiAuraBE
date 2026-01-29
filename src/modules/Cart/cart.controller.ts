@@ -23,7 +23,7 @@ import {
     @Post('add')
     addToCart(@Body() dto: AddToCartDto, @Req() req) {
       const userId = req.user.userId;
-      return this.cartService.addToCart(userId, dto.productId, dto.quantity);
+      return this.cartService.addToCart(userId, dto.productId, dto.quantity, dto.variantId);
     }
   
     /** 🗑 Remove product from cart */
