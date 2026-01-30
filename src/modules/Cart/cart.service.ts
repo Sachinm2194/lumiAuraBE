@@ -169,5 +169,49 @@ import { ProductVariant } from '../Product/Entities/product-variant.entity';
       cart.items = [];
       return this.cartRepo.save(cart);
     }
+
+    /** ✏️ Update cart item quantity */
+    async updateCartItem(userId: string, productId: string, quantity: number, variantId?: number) {
+      const cart = await this.getOrCreateCart(userId);
+
+      // Find product by UUID
+      const product = await this.productRepo.findOne({ where: { productId: productId } });
+      if (!product) throw new NotFoundException('Product not found');
+
+      // Find the cart item
+      let cartItem = cart.items.find((item) => 
+        item.product.id === product.id && 
+        (!item.variant || !variantId || item.variant.id === variantId)
+      );
+
+      if (!cartItem) throw new NotFoundException('Product not in cart');
+
+      // Validate quantity
+      if (quantity < 1) {
+        throw new BadRequestException('Quantity must be at least 1');
+      }
+
+      // If variant is specified, validate stock
+      if (variantId) {
+        const variant = await this.variantRepo.findOne({ where: { id: variantId, productId: product.id } });
+        if (!variant) throw new NotFoundException('Variant not found');
+        if (variant.quantity < quantity) {
+          throw new BadRequestException('Not enough stock available');
+        }
+      } else {
+        // Validate against default variant
+        const variant = product.variants?.find(v => v.isDefault) || product.variants?.[0];
+        if (!variant) throw new BadRequestException('Product has no variants');
+        if (variant.quantity < quantity) {
+          throw new BadRequestException('Not enough stock available');
+        }
+      }
+
+      // Update quantity
+      cartItem.quantity = quantity;
+      await this.cartRepo.save(cart);
+
+      return this.getOrCreateCart(userId);
+    }
   }
   
