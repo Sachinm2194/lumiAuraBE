@@ -140,17 +140,23 @@ import { ProductVariant } from '../Product/Entities/product-variant.entity';
     }
   
     /** 🗑 Remove product from cart */
-    async removeFromCart(userId: string, productId: string) { // productId is UUID
+    async removeFromCart(userId: string, productIds: string[]) { // productIds are UUIDs
       const cart = await this.getOrCreateCart(userId);
   
-      // Find product by UUID
-      const product = await this.productRepo.findOne({ where: { productId: productId } });
-      if (!product) throw new NotFoundException('Product not found');
+      // Find all products by their UUIDs
+      const products = await this.productRepo.find({
+        where: productIds.map(productId => ({ productId: productId }))
+      });
 
-      const cartItem = cart.items.find((item) => item.product.id === product.id);
-      if (!cartItem) throw new NotFoundException('Product not in cart');
+      if (products.length === 0) throw new NotFoundException('No products found');
+
+      // Find and remove matching cart items
+      const productIds_set = new Set(products.map(p => p.id));
+      const itemsToRemove = cart.items.filter((item) => productIds_set.has(item.product.id));
+
+      if (itemsToRemove.length === 0) throw new NotFoundException('No products found in cart');
   
-      await this.cartItemRepo.remove(cartItem);
+      await this.cartItemRepo.remove(itemsToRemove);
       return this.getOrCreateCart(userId); // return updated cart
     }
   

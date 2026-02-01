@@ -7,8 +7,9 @@ export class AddToCartDto {
 
   @IsNumber()
   @IsNotEmpty()
+  @IsOptional()
   @Min(1, { message: 'Quantity must be at least 1' })
-  quantity: number;
+  quantity? : number = 1;
 
   @IsNumber()
   @IsOptional()

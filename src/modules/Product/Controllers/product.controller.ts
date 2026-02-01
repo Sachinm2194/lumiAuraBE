@@ -53,11 +53,7 @@ export class ProductController {
     });
   }
 
-  /**
-   * Explicit endpoint for slug-based lookup (alternative to smart routing)
-   * GET /products/slug/glow-skin-moisturiser
-   * Note: This must come before @Get(':identifier') to avoid route conflicts
-   */
+
   @Get('slug/:slug')
   findBySlug(
     @Param('slug') slug: string,

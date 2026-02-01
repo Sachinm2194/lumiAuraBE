@@ -12,7 +12,7 @@ import {
     Patch,
   } from '@nestjs/common';
   import { CartService } from './cart.service';
-  import { AddToCartDto } from './DTO';
+  import { AddToCartDto, RemoveFromCartDto } from './DTO';
   import { UpdateCartItemDto } from './DTO/update-cart-item.dto';
   import { JwtAuthGuard } from '../Auth/guards/jwt-auth.guard';
   
@@ -29,7 +29,7 @@ import {
     }
 
     /** ✏️ Update cart item quantity */
-    @Patch('update/:productId')
+    @Post('update/:productId')
     updateCartItem(
       @Param('productId') productId: string,
       @Body() dto: UpdateCartItemDto,
@@ -39,14 +39,14 @@ import {
       return this.cartService.updateCartItem(userId, productId, dto.quantity, dto.variantId);
     }
   
-    /** 🗑 Remove product from cart */
-    @Delete('remove/:productId')
-    removeFromCart( 
-      @Param('productId') productId: string, // UUID string
+    /** 🗑 Remove multiple products from cart */
+    @Post('remove')
+    removeFromCart(
+      @Body() dto: RemoveFromCartDto,
       @Req() req,
     ) {
       const userId = req.user.userId;
-      return this.cartService.removeFromCart(userId, productId);
+      return this.cartService.removeFromCart(userId, dto.productIds);
     }
   
     /** 📦 Get user cart */

@@ -1,10 +1,6 @@
-import { IsNumber, IsNotEmpty, Min, IsOptional, IsUUID } from 'class-validator';
+import { IsNumber, IsNotEmpty, Min, IsOptional } from 'class-validator';
 
 export class UpdateCartItemDto {
-  @IsUUID()
-  @IsNotEmpty()
-  productId: string; // UUID of product
-
   @IsNumber()
   @IsNotEmpty()
   @Min(1, { message: 'Quantity must be at least 1' })
