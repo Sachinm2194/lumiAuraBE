@@ -4,6 +4,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
+import { forwardRef, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Order, OrderStatus, PaymentStatus } from './entities/order.entity';
@@ -11,6 +12,7 @@ import { OrderItem } from './entities/order-item.entity';
 import { Product } from '../Product/Entities/product.entity';
 import { ProductVariant } from '../Product/Entities/product-variant.entity';
 import { User } from '../Users/Entities/user.entity';
+import { Address } from '../Address/Entities/address.entity';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 
@@ -27,6 +29,8 @@ export class OrderService {
     private variantRepository: Repository<ProductVariant>,
     @InjectRepository(User)
     private userRepository: Repository<User>,
+    @InjectRepository(Address)
+    private addressRepository: Repository<Address>,
   ) {}
 
   async create(createOrderDto: CreateOrderDto, userId: string): Promise<Order> {
@@ -36,7 +40,85 @@ export class OrderService {
       throw new NotFoundException('User not found');
     }
 
-    const { items, shippingAddress, billingAddress, notes } = createOrderDto;
+    const {
+      items,
+      shippingAddressId,
+      shippingAddress,
+      billingAddressId,
+      billingAddress,
+      notes,
+    } = createOrderDto;
+
+    // Validate that either addressId or manual address is provided
+    if (!shippingAddressId && !shippingAddress) {
+      throw new BadRequestException(
+        'Either shippingAddressId or shippingAddress must be provided',
+      );
+    }
+
+    // Handle shipping address - use saved address if provided, otherwise use manual entry
+    let finalShippingAddress: any;
+    let finalShippingAddressId: string | null = null;
+
+    if (shippingAddressId) {
+      // Fetch saved address
+      const savedShippingAddress = await this.addressRepository.findOne({
+        where: { addressId: shippingAddressId, userId: user.id },
+      });
+      if (!savedShippingAddress) {
+        throw new NotFoundException(
+          `Shipping address with ID ${shippingAddressId} not found for this user`,
+        );
+      }
+      // Convert saved address to JSON format for snapshot
+      finalShippingAddress = {
+        fullName: savedShippingAddress.fullName,
+        addressLine1: savedShippingAddress.addressLine1,
+        addressLine2: savedShippingAddress.addressLine2,
+        city: savedShippingAddress.city,
+        state: savedShippingAddress.state,
+        postalCode: savedShippingAddress.postalCode,
+        country: savedShippingAddress.country,
+        phone: savedShippingAddress.phone,
+      };
+      finalShippingAddressId = savedShippingAddress.addressId;
+    } else {
+      // Use manual address entry
+      finalShippingAddress = shippingAddress;
+    }
+
+    // Handle billing address - use saved address if provided, otherwise use manual entry or shipping address
+    let finalBillingAddress: any;
+    let finalBillingAddressId: string | null = null;
+
+    if (billingAddressId) {
+      // Fetch saved address
+      const savedBillingAddress = await this.addressRepository.findOne({
+        where: { addressId: billingAddressId, userId: user.id },
+      });
+      if (!savedBillingAddress) {
+        throw new NotFoundException(
+          `Billing address with ID ${billingAddressId} not found for this user`,
+        );
+      }
+      // Convert saved address to JSON format for snapshot
+      finalBillingAddress = {
+        fullName: savedBillingAddress.fullName,
+        addressLine1: savedBillingAddress.addressLine1,
+        addressLine2: savedBillingAddress.addressLine2,
+        city: savedBillingAddress.city,
+        state: savedBillingAddress.state,
+        postalCode: savedBillingAddress.postalCode,
+        country: savedBillingAddress.country,
+      };
+      finalBillingAddressId = savedBillingAddress.addressId;
+    } else if (billingAddress) {
+      // Use manual billing address entry
+      finalBillingAddress = billingAddress;
+    } else {
+      // Default to shipping address
+      finalBillingAddress = finalShippingAddress;
+    }
 
     // Validate products and calculate totals
     let subtotal = 0;
@@ -122,8 +204,10 @@ export class OrderService {
       tax: Number(tax.toFixed(2)),
       shipping: Number(shipping.toFixed(2)),
       total: Number(total.toFixed(2)),
-      shippingAddress,
-      billingAddress: billingAddress || shippingAddress,
+      shippingAddressId: finalShippingAddressId,
+      billingAddressId: finalBillingAddressId,
+      shippingAddress: finalShippingAddress, // JSON snapshot
+      billingAddress: finalBillingAddress, // JSON snapshot
       notes,
       status: OrderStatus.PENDING,
       paymentStatus: PaymentStatus.PENDING,

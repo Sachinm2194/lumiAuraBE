@@ -82,6 +82,12 @@ export class Order {
   @Column({ nullable: true })
   trackingNumber: string;
 
+  @Column({ nullable: true })
+  shippingAddressId: string; // UUID of saved address (optional)
+
+  @Column({ nullable: true })
+  billingAddressId: string; // UUID of saved address (optional)
+
   @Column('json')
   shippingAddress: {
     fullName: string;

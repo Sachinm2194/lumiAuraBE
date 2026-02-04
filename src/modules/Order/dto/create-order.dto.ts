@@ -65,14 +65,25 @@ export class CreateOrderDto {
   @Type(() => CreateOrderItemDto)
   items: CreateOrderItemDto[];
 
-  @ValidateNested()
-  @Type(() => ShippingAddressDto)
-  shippingAddress: ShippingAddressDto;
+  // Either shippingAddressId (UUID) OR shippingAddress (manual entry)
+  @IsOptional()
+  @IsUUID()
+  shippingAddressId?: string; // UUID of saved address
 
   @IsOptional()
   @ValidateNested()
   @Type(() => ShippingAddressDto)
-  billingAddress?: ShippingAddressDto;
+  shippingAddress?: ShippingAddressDto; // Manual address entry
+
+  // Either billingAddressId (UUID) OR billingAddress (manual entry)
+  @IsOptional()
+  @IsUUID()
+  billingAddressId?: string; // UUID of saved address
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => ShippingAddressDto)
+  billingAddress?: ShippingAddressDto; // Manual address entry
 
   @IsOptional()
   @IsString()

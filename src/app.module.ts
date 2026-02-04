@@ -11,6 +11,7 @@ import { PaymentModule } from './modules/Payment/payment.module';
 import { InventoryModule } from './modules/Inventory/inventory.module';
 import { NotificationModule } from './modules/Notification/notification.module';
 import { WishlistModule } from './modules/Wishlist/wishlist.module';
+import { AddressModule } from './modules/Address/address.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -41,6 +42,7 @@ import { AppService } from './app.service';
     InventoryModule,
     NotificationModule,
     WishlistModule,
+    AddressModule,
   ],
   controllers: [AppController], // Root controller registered here
   providers: [AppService],

@@ -2,6 +2,7 @@
 import { Cart } from '../../Cart/Entities/cart.entity';
 import { Order } from '../../Order/entities/order.entity';
 import { WishlistItem } from '../../Wishlist/Entities/wishlist-item.entity';
+import { Address } from '../../Address/Entities/address.entity';
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -77,6 +78,10 @@ export class User {
   // 👇 One-to-Many relation with wishlist items
   @OneToMany(() => WishlistItem, wishlistItem => wishlistItem.user)
   wishlistItems: WishlistItem[];
+
+  // 👇 One-to-Many relation with addresses
+  @OneToMany(() => Address, address => address.user)
+  addresses: Address[];
 
   @BeforeInsert()
   generateUserId() {

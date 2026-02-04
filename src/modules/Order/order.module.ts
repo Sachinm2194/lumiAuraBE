@@ -10,10 +10,11 @@ import { User } from '../Users/Entities/user.entity';
 import { AuthModule } from '../Auth/auth.module';
 import { NotificationModule } from '../Notification/notification.module';
 import { ProductVariant } from '../Product/Entities/product-variant.entity';
+import { Address } from '../Address/Entities/address.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Order, OrderItem, Product, ProductVariant, User]),
+    TypeOrmModule.forFeature([Order, OrderItem, Product, ProductVariant, User, Address]),
     AuthModule,
     NotificationModule,
   ],
