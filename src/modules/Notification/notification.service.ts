@@ -80,8 +80,8 @@ export class NotificationService {
         <tr>
           <td>${item.productName}</td>
           <td>${item.quantity}</td>
-          <td>$${item.price}</td>
-          <td>$${item.total}</td>
+          <td>₹${item.price}</td>
+          <td>₹${item.total}</td>
         </tr>
       `,
       )
@@ -114,10 +114,10 @@ export class NotificationService {
         </table>
 
         <div style="margin-top: 20px; text-align: right;">
-          <p><strong>Subtotal: $${order.subtotal}</strong></p>
-          <p><strong>Tax: $${order.tax}</strong></p>
-          <p><strong>Shipping: $${order.shipping}</strong></p>
-          <h3><strong>Total: $${order.total}</strong></h3>
+          <p><strong>Subtotal: ₹${order.subtotal}</strong></p>
+          <p><strong>Tax: ₹${order.tax}</strong></p>
+          <p><strong>Shipping: ₹${order.shipping}</strong></p>
+          <h3><strong>Total: ₹${order.total}</strong></h3>
         </div>
 
         <div style="background: #f5f5f5; padding: 20px; margin: 20px 0;">
@@ -256,5 +256,120 @@ export class NotificationService {
         </p>
       </div>
     `;
+  }
+
+  // Send dummy order confirmation email (for testing without real orders)
+  async sendDummyOrderConfirmation(
+    email: string,
+    orderNumber: string,
+    items: Array<{
+      productName: string;
+      quantity: number;
+      price: number;
+      total: number;
+      variantName?: string;
+    }>,
+    subtotal: number,
+    tax: number,
+    shipping: number,
+    total: number,
+    shippingAddress: {
+      fullName: string;
+      addressLine1: string;
+      addressLine2?: string;
+      city: string;
+      state: string;
+      postalCode: string;
+      country: string;
+      phone: string;
+    },
+    status?: string,
+  ): Promise<void> {
+    if (!this.isSmtpConfigured || !this.transporter) {
+      console.warn(`⚠️  SMTP not configured. Dummy order email not sent to ${email}`);
+      console.warn(`📧 [DEV MODE] Order Number: ${orderNumber}`);
+      return;
+    }
+
+    const itemsHtml = items
+      .map(
+        (item) => `
+        <tr>
+          <td>${item.productName}${item.variantName ? ` (${item.variantName})` : ''}</td>
+          <td>${item.quantity}</td>
+          <td>₹${item.price.toFixed(2)}</td>
+          <td>₹${item.total.toFixed(2)}</td>
+        </tr>
+      `,
+      )
+      .join('');
+
+    const orderDate = new Date().toLocaleDateString();
+    const orderStatus = status || 'pending';
+
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h1 style="color: #333;">Order Confirmation</h1>
+        <p>Thank you for your order! Here are the details:</p>
+        
+        <div style="background: #f5f5f5; padding: 20px; margin: 20px 0;">
+          <h2>Order #${orderNumber}</h2>
+          <p><strong>Order Date:</strong> ${orderDate}</p>
+          <p><strong>Status:</strong> ${orderStatus}</p>
+        </div>
+
+        <h3>Items Ordered:</h3>
+        <table style="width: 100%; border-collapse: collapse;">
+          <thead>
+            <tr style="background: #f0f0f0;">
+              <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Product</th>
+              <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Quantity</th>
+              <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Price</th>
+              <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${itemsHtml}
+          </tbody>
+        </table>
+
+        <div style="margin-top: 20px; text-align: right;">
+          <p><strong>Subtotal: ₹${subtotal.toFixed(2)}</strong></p>
+          <p><strong>Tax: ₹${tax.toFixed(2)}</strong></p>
+          <p><strong>Shipping: ₹${shipping.toFixed(2)}</strong></p>
+          <h3><strong>Total: ₹${total.toFixed(2)}</strong></h3>
+        </div>
+
+        <div style="background: #f5f5f5; padding: 20px; margin: 20px 0;">
+          <h3>Shipping Address:</h3>
+          <p>
+            ${shippingAddress.fullName}<br>
+            ${shippingAddress.addressLine1}<br>
+            ${shippingAddress.addressLine2 ? shippingAddress.addressLine2 + '<br>' : ''}
+            ${shippingAddress.city}, ${shippingAddress.state} ${shippingAddress.postalCode}<br>
+            ${shippingAddress.country}<br>
+            Phone: ${shippingAddress.phone}
+          </p>
+        </div>
+
+        <p>We'll send you another email when your order ships!</p>
+        <p>Thank you for shopping with LumiAura!</p>
+      </div>
+    `;
+
+    const mailOptions = {
+      from: this.configService.get('FROM_EMAIL') || 'noreply@lumiaura.com',
+      to: email,
+      subject: `Order Confirmation - ${orderNumber}`,
+      html: htmlContent,
+    };
+
+    try {
+      await this.transporter.sendMail(mailOptions);
+      console.log(`✅ Dummy order confirmation email sent to ${email} for order ${orderNumber}`);
+    } catch (error) {
+      console.error('❌ Failed to send dummy order confirmation email:', error);
+      throw error;
+    }
   }
 }

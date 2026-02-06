@@ -190,7 +190,7 @@ export class OrderService {
 
     // Calculate tax and shipping (you can customize these calculations)
     const tax = subtotal * 0.08; // 8% tax
-    const shipping = subtotal > 100 ? 0 : 10; // Free shipping over $100
+    const shipping = subtotal > 1000 ? 0 : 50; // Free shipping over ₹1000
     const total = subtotal + tax + shipping;
 
     // Generate order number

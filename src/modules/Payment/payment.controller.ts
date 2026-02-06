@@ -11,6 +11,8 @@ import {
 import type { RawBodyRequest } from '@nestjs/common';
 import { PaymentService } from './payment.service';
 import { AdminGuard } from '../Auth/guards/admin.guard';
+import { JwtAuthGuard } from '../Auth/guards/jwt-auth.guard';
+import { DummyPaymentDto } from './dto/dummy-payment.dto';
 
 @Controller('payments')
 export class PaymentController {
@@ -43,5 +45,24 @@ export class PaymentController {
   ) {
     const refund = await this.paymentService.refundPayment(orderId, amount);
     return { refund };
+  }
+
+  @Post('dummy-payment')
+  @UseGuards(JwtAuthGuard)
+  async createDummyPayment(
+    @Body() dummyPaymentDto: DummyPaymentDto,
+    @Request() req: any,
+  ) {
+    // Use authenticated user's email if not provided in payload
+    const email = dummyPaymentDto.email || req.user.email;
+    
+    if (!email) {
+      throw new BadRequestException('Email is required. Please provide email in payload or ensure you are authenticated.');
+    }
+
+    return this.paymentService.createDummyPayment({
+      ...dummyPaymentDto,
+      email,
+    });
   }
 }

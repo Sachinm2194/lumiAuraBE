@@ -8,6 +8,8 @@ import { ConfigService } from '@nestjs/config';
 import Stripe from 'stripe';
 import { OrderService } from '../Order/order.service';
 import { PaymentStatus } from '../Order/entities/order.entity';
+import { NotificationService } from '../Notification/notification.service';
+import { DummyPaymentDto } from './dto/dummy-payment.dto';
 
 @Injectable()
 export class PaymentService {
@@ -17,6 +19,7 @@ export class PaymentService {
     private configService: ConfigService,
     @Inject(forwardRef(() => OrderService))
     private orderService: OrderService,
+    private notificationService: NotificationService,
   ) {
     this.stripe = new Stripe(
       this.configService.get('STRIPE_SECRET_KEY') || '',
@@ -41,8 +44,8 @@ export class PaymentService {
 
     try {
       const paymentIntent = await this.stripe.paymentIntents.create({
-        amount: Math.round(Number(order.total) * 100), // Convert to cents
-        currency: 'usd',
+        amount: Math.round(Number(order.total) * 100), // Convert to paise (smallest currency unit for INR)
+        currency: 'inr',
         metadata: {
           orderId: order.id,
           orderNumber: order.orderNumber,
@@ -158,6 +161,40 @@ export class PaymentService {
     } catch (error) {
       throw new BadRequestException(
         `Failed to process refund: ${error.message}`,
+      );
+    }
+  }
+
+  // Dummy Payment - Only sends email with order details, no real payment integration
+  // This is completely dummy - no real order is created or fetched
+  async createDummyPayment(dummyPaymentDto: DummyPaymentDto): Promise<{ message: string; orderDetails: any }> {
+    try {
+      // Send order confirmation email with provided order details
+      await this.notificationService.sendDummyOrderConfirmation(
+        dummyPaymentDto.email,
+        dummyPaymentDto.orderNumber,
+        dummyPaymentDto.items,
+        dummyPaymentDto.subtotal,
+        dummyPaymentDto.tax,
+        dummyPaymentDto.shipping,
+        dummyPaymentDto.total,
+        dummyPaymentDto.shippingAddress,
+        dummyPaymentDto.status || 'pending',
+      );
+
+      return {
+        message: 'Dummy payment processed successfully. Order confirmation email sent.',
+        orderDetails: {
+          orderNumber: dummyPaymentDto.orderNumber,
+          email: dummyPaymentDto.email,
+          total: dummyPaymentDto.total,
+          status: dummyPaymentDto.status || 'pending',
+          itemsCount: dummyPaymentDto.items.length,
+        },
+      };
+    } catch (error) {
+      throw new BadRequestException(
+        `Failed to process dummy payment: ${error.message}`,
       );
     }
   }
