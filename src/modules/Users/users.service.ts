@@ -30,6 +30,14 @@ export class UsersService {
   findUserByUserId(userId: string) {
     return this.userRepository.findOne({where:{userId}});
   }
+
+  async getUserProfile(userId: string) {
+    const user = await this.userRepository.findOne({
+      where: { userId },
+      select: ['id', 'userId', 'email', 'phone', 'firstName', 'lastName', 'isVerified', 'updatedAt', 'createdAt'],
+    });
+    return user;
+  }
   findUserByEmail(email: string) {
     return this.userRepository.findOne({where:{email}});
   }
