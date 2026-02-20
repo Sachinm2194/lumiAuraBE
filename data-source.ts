@@ -1,8 +1,9 @@
+import * as dotenv from 'dotenv';
+dotenv.config();
+
 import { DataSource } from 'typeorm';
 import * as path from 'path';
 
-// Load environment variables from .env file
-// This works with ts-node and doesn't require dotenv package
 const env = process.env;
 
 export default new DataSource({
@@ -12,9 +13,10 @@ export default new DataSource({
   username: env.DB_USER || 'postgres',
   password: env.DB_PASSWORD || 'postgres',
   database: env.DB_NAME || 'lumiaura',
-  entities: [path.join(__dirname, 'src/**/*.entity.ts')],
-  migrations: [path.join(__dirname, 'src/migrations/*.ts')],
+
+  entities: [path.join(__dirname, '**/*.entity.{js,ts}')],
+  migrations: [path.join(__dirname, 'migrations/*.{js,ts}')],
+
   synchronize: false,
   logging: true,
 });
-
