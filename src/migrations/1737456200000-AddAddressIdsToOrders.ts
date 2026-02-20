@@ -2,33 +2,41 @@ import { MigrationInterface, QueryRunner, TableColumn } from 'typeorm';
 
 export class AddAddressIdsToOrders1737456200000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
-    // Add shippingAddressId to orders table
-    await queryRunner.addColumn(
-      'orders',
-      new TableColumn({
-        name: 'shippingAddressId',
-        type: 'uuid',
-        isNullable: true,
-      }),
-    );
+    const ordersTable = await queryRunner.getTable('orders');
+    
+    // Add shippingAddressId to orders table if it doesn't exist
+    const hasShippingAddressId = ordersTable?.findColumnByName('shippingAddressId');
+    if (!hasShippingAddressId) {
+      await queryRunner.addColumn(
+        'orders',
+        new TableColumn({
+          name: 'shippingAddressId',
+          type: 'uuid',
+          isNullable: true,
+        }),
+      );
+    }
 
-    // Add billingAddressId to orders table
-    await queryRunner.addColumn(
-      'orders',
-      new TableColumn({
-        name: 'billingAddressId',
-        type: 'uuid',
-        isNullable: true,
-      }),
-    );
+    // Add billingAddressId to orders table if it doesn't exist
+    const hasBillingAddressId = ordersTable?.findColumnByName('billingAddressId');
+    if (!hasBillingAddressId) {
+      await queryRunner.addColumn(
+        'orders',
+        new TableColumn({
+          name: 'billingAddressId',
+          type: 'uuid',
+          isNullable: true,
+        }),
+      );
+    }
 
-    // Create indexes for faster lookups
+    // Create indexes for faster lookups (only if they don't exist)
     await queryRunner.query(`
-      CREATE INDEX "IDX_orders_shippingAddressId" ON "orders" ("shippingAddressId");
+      CREATE INDEX IF NOT EXISTS "IDX_orders_shippingAddressId" ON "orders" ("shippingAddressId");
     `);
 
     await queryRunner.query(`
-      CREATE INDEX "IDX_orders_billingAddressId" ON "orders" ("billingAddressId");
+      CREATE INDEX IF NOT EXISTS "IDX_orders_billingAddressId" ON "orders" ("billingAddressId");
     `);
   }
 

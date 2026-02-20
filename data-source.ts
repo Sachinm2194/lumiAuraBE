@@ -14,8 +14,8 @@ export default new DataSource({
   password: env.DB_PASSWORD || 'postgres',
   database: env.DB_NAME || 'lumiaura',
 
-  entities: [path.join(__dirname, '**/*.entity.{js,ts}')],
-  migrations: [path.join(__dirname, 'migrations/*.{js,ts}')],
+  entities: ['src/**/*.entity.ts'],
+  migrations: ['src/migrations/*.ts'],
 
   synchronize: false,
   logging: true,

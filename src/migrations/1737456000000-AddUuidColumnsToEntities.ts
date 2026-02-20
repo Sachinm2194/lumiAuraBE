@@ -32,40 +32,55 @@ export class AddUuidColumnsToEntities1737456000000
       `);
     }
 
-    // Add categoryId to categories table
-    await queryRunner.addColumn(
-      'categories',
-      new TableColumn({
-        name: 'categoryId',
-        type: 'uuid',
-        isNullable: true,
-        isUnique: true,
-      }),
-    );
+    // Check if categoryId column exists in categories table, if not add it
+    const categoriesTable = await queryRunner.getTable('categories');
+    const hasCategoryIdColumn = categoriesTable?.findColumnByName('categoryId');
+    
+    if (!hasCategoryIdColumn) {
+      await queryRunner.addColumn(
+        'categories',
+        new TableColumn({
+          name: 'categoryId',
+          type: 'uuid',
+          isNullable: true,
+          isUnique: true,
+        }),
+      );
+    }
 
-    // Add tagId to tags table
-    await queryRunner.addColumn(
-      'tags',
-      new TableColumn({
-        name: 'tagId',
-        type: 'uuid',
-        isNullable: true,
-        isUnique: true,
-      }),
-    );
+    // Check if tagId column exists in tags table, if not add it
+    const tagsTable = await queryRunner.getTable('tags');
+    const hasTagIdColumn = tagsTable?.findColumnByName('tagId');
+    
+    if (!hasTagIdColumn) {
+      await queryRunner.addColumn(
+        'tags',
+        new TableColumn({
+          name: 'tagId',
+          type: 'uuid',
+          isNullable: true,
+          isUnique: true,
+        }),
+      );
+    }
 
-    // Add reviewId to product_reviews table
-    await queryRunner.addColumn(
-      'product_reviews',
-      new TableColumn({
-        name: 'reviewId',
-        type: 'uuid',
-        isNullable: true,
-        isUnique: true,
-      }),
-    );
+    // Check if reviewId column exists in product_reviews table, if not add it
+    const productReviewsTable = await queryRunner.getTable('product_reviews');
+    const hasReviewIdColumn = productReviewsTable?.findColumnByName('reviewId');
+    
+    if (!hasReviewIdColumn) {
+      await queryRunner.addColumn(
+        'product_reviews',
+        new TableColumn({
+          name: 'reviewId',
+          type: 'uuid',
+          isNullable: true,
+          isUnique: true,
+        }),
+      );
+    }
 
-    // Generate UUIDs for existing records
+    // Generate UUIDs for existing records (only if columns exist and are null)
     await queryRunner.query(`
       UPDATE categories 
       SET "categoryId" = gen_random_uuid() 

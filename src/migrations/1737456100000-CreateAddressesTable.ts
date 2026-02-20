@@ -2,6 +2,45 @@ import { MigrationInterface, QueryRunner, Table, TableForeignKey } from 'typeorm
 
 export class CreateAddressesTable1737456100000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
+    // Check if addresses table already exists
+    const addressesTable = await queryRunner.getTable('addresses');
+    
+    if (addressesTable) {
+      // Table exists, just ensure foreign key exists
+      const hasForeignKey = addressesTable.foreignKeys.find(
+        fk => fk.columnNames.includes('userId') && fk.referencedTableName === 'users'
+      );
+      
+      if (!hasForeignKey) {
+        await queryRunner.createForeignKey(
+          'addresses',
+          new TableForeignKey({
+            columnNames: ['userId'],
+            referencedColumnNames: ['id'],
+            referencedTableName: 'users',
+            onDelete: 'CASCADE',
+          }),
+        );
+      }
+      
+      // Ensure indexes exist
+      const hasUserIdIndex = addressesTable.indices.find(idx => idx.columnNames.includes('userId'));
+      if (!hasUserIdIndex) {
+        await queryRunner.query(`
+          CREATE INDEX IF NOT EXISTS "IDX_addresses_userId" ON "addresses" ("userId");
+        `);
+      }
+      
+      const hasAddressIdIndex = addressesTable.indices.find(idx => idx.columnNames.includes('addressId'));
+      if (!hasAddressIdIndex) {
+        await queryRunner.query(`
+          CREATE INDEX IF NOT EXISTS "IDX_addresses_addressId" ON "addresses" ("addressId");
+        `);
+      }
+      
+      return; // Table already exists, skip creation
+    }
+    
     await queryRunner.createTable(
       new Table({
         name: 'addresses',
