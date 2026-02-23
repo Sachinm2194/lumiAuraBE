@@ -16,11 +16,7 @@ async function bootstrap() {
 
   app.use(cookieParser());
   // Enable CORS
-  app.enableCors({
-    origin: ['http://localhost:3000', 'https://your-frontend-domain.com'],
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-    credentials: true,
-  });
+
 
   // Raw body middleware for Stripe webhooks
   app.use('/payments/webhook', (req, res, next) => {
